@@ -42,13 +42,19 @@ _scheduler = AsyncIOScheduler()
 
 
 async def _heartbeat_job() -> None:
-    async with async_session() as db:
-        await check_heartbeats(db, settings.heartbeat_timeout_seconds)
+    try:
+        async with async_session() as db:
+            await check_heartbeats(db, settings.heartbeat_timeout_seconds)
+    except Exception as exc:
+        logger.error("Heartbeat job failed: %s", exc, exc_info=True)
 
 
 async def _alert_job() -> None:
-    async with async_session() as db:
-        await check_alerts(db)
+    try:
+        async with async_session() as db:
+            await check_alerts(db)
+    except Exception as exc:
+        logger.error("Alert job failed: %s", exc, exc_info=True)
 
 
 # Routers
@@ -77,8 +83,12 @@ async def websocket_endpoint(websocket: WebSocket):
 async def startup_event() -> None:
     logger.info("Mission Control starting up...")
     # Warm up Redis — fail fast if Redis is unreachable
-    await get_redis().ping()
-    logger.info("Redis connection OK")
+    try:
+        await get_redis().ping()
+        logger.info("Redis connection OK")
+    except Exception as exc:
+        logger.critical("Redis unreachable at startup: %s", exc)
+        raise
     # Schedule background jobs
     _scheduler.add_job(_heartbeat_job, "interval", seconds=30, id="heartbeat")
     _scheduler.add_job(
