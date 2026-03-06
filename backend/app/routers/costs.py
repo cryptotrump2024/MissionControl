@@ -1,0 +1,128 @@
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models.cost_record import CostRecord
+from app.schemas.cost_record import CostRecordCreate, CostRecordResponse, CostSummary
+from app.services.ws_manager import ws_manager
+
+router = APIRouter()
+
+
+@router.post("", response_model=CostRecordResponse, status_code=201)
+async def create_cost_record(
+    cost_in: CostRecordCreate, db: AsyncSession = Depends(get_db)
+):
+    """Record a cost entry for an agent/task."""
+    record = CostRecord(
+        agent_id=cost_in.agent_id,
+        task_id=cost_in.task_id,
+        model=cost_in.model,
+        input_tokens=cost_in.input_tokens,
+        output_tokens=cost_in.output_tokens,
+        cost_usd=cost_in.cost_usd,
+    )
+    db.add(record)
+    await db.commit()
+    await db.refresh(record)
+
+    await ws_manager.broadcast("cost_update", {
+        "agent_id": str(record.agent_id) if record.agent_id else None,
+        "model": record.model,
+        "cost_usd": record.cost_usd,
+        "input_tokens": record.input_tokens,
+        "output_tokens": record.output_tokens,
+    })
+
+    return record
+
+
+@router.get("/summary", response_model=CostSummary)
+async def cost_summary(
+    period: str = Query(default="today", pattern="^(today|week|month|all)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get aggregated cost summary for a time period."""
+    now = datetime.now(timezone.utc)
+    if period == "today":
+        since = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        since = now - timedelta(days=7)
+    elif period == "month":
+        since = now - timedelta(days=30)
+    else:
+        since = datetime.min.replace(tzinfo=timezone.utc)
+
+    # Total cost and tokens
+    query = select(
+        func.coalesce(func.sum(CostRecord.cost_usd), 0),
+        func.coalesce(func.sum(CostRecord.input_tokens), 0),
+        func.coalesce(func.sum(CostRecord.output_tokens), 0),
+    ).where(CostRecord.timestamp >= since)
+
+    result = await db.execute(query)
+    row = result.one()
+    total_cost, total_input, total_output = float(row[0]), int(row[1]), int(row[2])
+
+    # Cost by agent
+    agent_query = (
+        select(CostRecord.agent_id, func.sum(CostRecord.cost_usd))
+        .where(CostRecord.timestamp >= since)
+        .group_by(CostRecord.agent_id)
+    )
+    agent_result = await db.execute(agent_query)
+    by_agent = {str(row[0]): float(row[1]) for row in agent_result.all() if row[0]}
+
+    # Cost by model
+    model_query = (
+        select(CostRecord.model, func.sum(CostRecord.cost_usd))
+        .where(CostRecord.timestamp >= since)
+        .group_by(CostRecord.model)
+    )
+    model_result = await db.execute(model_query)
+    by_model = {row[0]: float(row[1]) for row in model_result.all()}
+
+    return CostSummary(
+        total_cost=total_cost,
+        total_input_tokens=total_input,
+        total_output_tokens=total_output,
+        by_agent=by_agent,
+        by_model=by_model,
+        period=period,
+    )
+
+
+@router.get("/daily")
+async def daily_costs(
+    days: int = Query(default=30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get daily cost breakdown for charting."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    query = (
+        select(
+            func.date(CostRecord.timestamp).label("date"),
+            func.sum(CostRecord.cost_usd).label("cost"),
+            func.sum(CostRecord.input_tokens).label("input_tokens"),
+            func.sum(CostRecord.output_tokens).label("output_tokens"),
+        )
+        .where(CostRecord.timestamp >= since)
+        .group_by(func.date(CostRecord.timestamp))
+        .order_by(func.date(CostRecord.timestamp))
+    )
+
+    result = await db.execute(query)
+    return [
+        {
+            "date": str(row.date),
+            "cost": float(row.cost),
+            "input_tokens": int(row.input_tokens),
+            "output_tokens": int(row.output_tokens),
+        }
+        for row in result.all()
+    ]

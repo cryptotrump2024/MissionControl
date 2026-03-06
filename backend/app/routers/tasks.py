@@ -1,0 +1,145 @@
+from datetime import datetime, timezone
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models.task import Task
+from app.models.agent import Agent
+from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskListResponse
+from app.services.ws_manager import ws_manager
+
+router = APIRouter()
+
+
+@router.post("", response_model=TaskResponse, status_code=201)
+async def create_task(task_in: TaskCreate, db: AsyncSession = Depends(get_db)):
+    """Create a new task, optionally assigning it to an agent."""
+    task = Task(
+        title=task_in.title,
+        description=task_in.description,
+        agent_id=task_in.agent_id,
+        priority=task_in.priority,
+        input_data=task_in.input_data,
+        requires_approval=task_in.requires_approval,
+        parent_task_id=task_in.parent_task_id,
+        delegated_by=task_in.delegated_by,
+        delegated_to=task_in.delegated_to,
+        status="queued",
+    )
+
+    if task_in.requires_approval:
+        task.approval_status = "pending"
+
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+
+    # Update agent task count
+    if task.agent_id:
+        result = await db.execute(select(Agent).where(Agent.id == task.agent_id))
+        agent = result.scalar_one_or_none()
+        if agent:
+            agent.total_tasks += 1
+            await db.commit()
+
+    await ws_manager.broadcast("task_created", {
+        "id": str(task.id),
+        "title": task.title,
+        "status": task.status,
+        "agent_id": str(task.agent_id) if task.agent_id else None,
+        "priority": task.priority,
+    })
+
+    return task
+
+
+@router.get("", response_model=TaskListResponse)
+async def list_tasks(
+    status: str | None = None,
+    agent_id: UUID | None = None,
+    priority: int | None = None,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    """List tasks with filtering and pagination."""
+    query = select(Task)
+    count_query = select(func.count(Task.id))
+
+    if status:
+        query = query.where(Task.status == status)
+        count_query = count_query.where(Task.status == status)
+    if agent_id:
+        query = query.where(Task.agent_id == agent_id)
+        count_query = count_query.where(Task.agent_id == agent_id)
+    if priority:
+        query = query.where(Task.priority == priority)
+        count_query = count_query.where(Task.priority == priority)
+
+    query = query.offset(skip).limit(limit).order_by(Task.created_at.desc())
+    result = await db.execute(query)
+    tasks = result.scalars().all()
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar()
+
+    return TaskListResponse(tasks=tasks, total=total)
+
+
+@router.get("/{task_id}", response_model=TaskResponse)
+async def get_task(task_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Get full details for a single task."""
+    result = await db.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@router.patch("/{task_id}", response_model=TaskResponse)
+async def update_task(
+    task_id: UUID,
+    update: TaskUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a task's status, output, or other fields."""
+    result = await db.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    update_data = update.model_dump(exclude_unset=True)
+    old_status = task.status
+
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
+    # Set timestamps based on status transitions
+    if "status" in update_data:
+        if update_data["status"] == "running" and not task.started_at:
+            task.started_at = datetime.now(timezone.utc)
+        elif update_data["status"] in ("completed", "failed", "cancelled"):
+            task.completed_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(task)
+
+    # Broadcast appropriate event
+    if "status" in update_data:
+        event_type = {
+            "completed": "task_completed",
+            "failed": "task_failed",
+        }.get(update_data["status"], "task_updated")
+
+        await ws_manager.broadcast(event_type, {
+            "id": str(task.id),
+            "title": task.title,
+            "status": task.status,
+            "old_status": old_status,
+            "agent_id": str(task.agent_id) if task.agent_id else None,
+        })
+
+    return task

@@ -1,0 +1,88 @@
+import { NavLink, Outlet } from 'react-router-dom';
+import { useWSStore } from '@/stores/websocket';
+import { useEffect } from 'react';
+
+const navItems = [
+  { path: '/', label: 'Dashboard', icon: '◉' },
+  { path: '/agents', label: 'Agents', icon: '⬡' },
+  { path: '/tasks', label: 'Tasks', icon: '☐' },
+  { path: '/logs', label: 'Logs', icon: '≡' },
+  { path: '/costs', label: 'Costs', icon: '$' },
+  { path: '/approvals', label: 'Approvals', icon: '✓' },
+];
+
+export default function Layout() {
+  const { connected, connect, events } = useWSStore();
+
+  useEffect(() => {
+    connect();
+  }, [connect]);
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-60 bg-mc-bg-secondary border-r border-mc-border-primary flex flex-col">
+        {/* Logo */}
+        <div className="p-4 border-b border-mc-border-primary">
+          <h1 className="text-lg font-bold text-mc-text-primary">
+            ◈ Mission Control
+          </h1>
+          <p className="text-xs text-mc-text-muted mt-1">AI Agent Command Center</p>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 py-2">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-md text-sm transition-colors ${
+                  isActive
+                    ? 'bg-mc-accent-blue/10 text-mc-accent-blue border border-mc-accent-blue/20'
+                    : 'text-mc-text-secondary hover:bg-mc-bg-hover hover:text-mc-text-primary'
+                }`
+              }
+            >
+              <span className="text-base w-5 text-center">{item.icon}</span>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Connection Status */}
+        <div className="p-4 border-t border-mc-border-primary">
+          <div className="flex items-center gap-2 text-xs">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                connected ? 'bg-mc-accent-green animate-pulse' : 'bg-mc-accent-red'
+              }`}
+            />
+            <span className="text-mc-text-muted">
+              {connected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+          <div className="text-xs text-mc-text-muted mt-1">
+            {events.length} events
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        {/* Top Bar */}
+        <header className="h-14 bg-mc-bg-secondary border-b border-mc-border-primary flex items-center px-6">
+          <div className="flex-1" />
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-mc-text-muted">v0.1.0</span>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <div className="p-6">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,61 @@
+# ============================================================
+# Pre-commit hooks — Security & Code Quality
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+# ============================================================
+
+repos:
+  # ── Secret Detection (CRITICAL — blocks accidental token commits) ──
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets
+        args:
+          - --baseline
+          - .secrets.baseline
+          # Patterns to always flag — Anthropic OAuth tokens
+          - --word-list
+          - .secrets.wordlist
+        exclude: |
+          (?x)^(
+            \.env\.example|          # Placeholder tokens are fine
+            \.secrets\.baseline|     # The baseline itself
+            .*\.md$                  # Documentation (no real tokens)
+          )$
+
+  # ── General secret patterns (catches anything detect-secrets misses) ──
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Block files matching secret patterns
+      - id: detect-private-key
+        name: Detect private keys
+
+      # Prevent committing to main/master directly
+      - id: no-commit-to-branch
+        name: No direct commits to main
+        args: [--branch, main, --branch, master]
+
+      # Catch common issues
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+
+  # ── Custom regex hook — catches sk-ant-* patterns explicitly ──
+  - repo: local
+    hooks:
+      - id: no-anthropic-tokens
+        name: "Block Anthropic OAuth tokens (sk-ant-)"
+        language: pygrep
+        entry: "sk-ant-"
+        types: [text]
+        exclude: |
+          (?x)^(
+            \.env\.example|
+            \.pre-commit-config\.yaml|
+            \.secrets\.baseline
+          )$
+        pass_filenames: true

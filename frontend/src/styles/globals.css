@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-mc-bg-primary text-mc-text-primary antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-mc-bg-secondary;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-mc-border-secondary rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-mc-text-muted;
+  }
+}
+
+@layer components {
+  .mc-card {
+    @apply bg-mc-bg-card border border-mc-border-primary rounded-lg p-4;
+  }
+  .mc-btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors duration-150;
+  }
+  .mc-btn-primary {
+    @apply mc-btn bg-mc-accent-blue hover:bg-mc-accent-blue/80 text-white;
+  }
+  .mc-btn-secondary {
+    @apply mc-btn bg-mc-bg-tertiary hover:bg-mc-bg-hover border border-mc-border-primary text-mc-text-secondary;
+  }
+  .mc-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .mc-input {
+    @apply bg-mc-bg-secondary border border-mc-border-primary rounded-md px-3 py-2 text-mc-text-primary placeholder-mc-text-muted focus:outline-none focus:border-mc-accent-blue transition-colors;
+  }
+}

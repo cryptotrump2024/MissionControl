@@ -1,0 +1,100 @@
+# Agent Registry — Defines the hierarchy, config, and delegation chains for all agents.
+# Adding a new agent = add an entry here + create a folder in agents/<type>/
+
+agents:
+  ceo:
+    name: "CEO Agent"
+    tier: 1
+    model: claude-sonnet-4-6
+    token_budget_daily: 100000
+    delegation_targets: [researcher, writer, developer]
+    capabilities:
+      - Strategic planning
+      - Task decomposition
+      - Cross-department orchestration
+      - Decision making
+      - Delegation
+    tools: [delegate_task, review_output, plan_tasks]
+    max_steps: 10
+    reports_to: null
+    description: >
+      Master orchestrator and strategic visionary. Receives complex tasks from users,
+      decomposes them into subtasks, and delegates to specialist agents. Reviews
+      results and synthesizes final output.
+
+  researcher:
+    name: "Research Agent"
+    tier: 2
+    model: claude-haiku-4-5
+    token_budget_daily: 50000
+    delegation_targets: []
+    capabilities:
+      - Web search
+      - Data gathering
+      - Summarization
+      - Fact checking
+      - Competitive analysis
+    tools: [web_search, read_file, summarize, analyze_data]
+    max_steps: 15
+    reports_to: ceo
+    description: >
+      Gathers information from the web and internal sources. Performs research,
+      data analysis, and fact-checking. Returns structured research reports.
+
+  writer:
+    name: "Content Writer Agent"
+    tier: 2
+    model: claude-sonnet-4-6
+    token_budget_daily: 50000
+    delegation_targets: []
+    capabilities:
+      - Content writing
+      - Copywriting
+      - Blog posts
+      - Technical writing
+      - Editing
+    tools: [write_draft, read_file, web_search]
+    max_steps: 10
+    reports_to: ceo
+    description: >
+      Creates written content including blog posts, articles, documentation,
+      marketing copy, and reports. Takes research inputs and produces polished drafts.
+
+  developer:
+    name: "Code Assistant Agent"
+    tier: 2
+    model: claude-sonnet-4-6
+    token_budget_daily: 75000
+    delegation_targets: []
+    capabilities:
+      - Code generation
+      - Code review
+      - Bug fixing
+      - Architecture design
+      - Documentation
+    tools: [write_code, read_file, analyze_data, review_output]
+    max_steps: 15
+    reports_to: ceo
+    description: >
+      Generates, reviews, and analyzes code. Handles software development tasks
+      including architecture design, implementation, debugging, and documentation.
+
+  auditor:
+    name: "Auditor Agent"
+    tier: 0
+    model: claude-sonnet-4-6
+    token_budget_daily: 30000
+    delegation_targets: []
+    capabilities:
+      - Quality review
+      - Accuracy verification
+      - Bias detection
+      - Compliance checking
+      - Output validation
+    tools: [read_file, review_output, flag_issue]
+    max_steps: 5
+    reports_to: null  # Governance tier — reports to nobody
+    description: >
+      Reviews outputs from other agents for quality, accuracy, bias, and compliance.
+      Part of the Governance tier with oversight across all agent activities.
+      Can flag issues and request revisions.
