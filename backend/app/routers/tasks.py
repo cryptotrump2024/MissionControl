@@ -72,8 +72,14 @@ async def create_task(task_in: TaskCreate, db: AsyncSession = Depends(get_db)):
         "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
     })
     redis_client = get_redis()
-    await redis_client.xadd(stream_key, {"task": task_payload})
-    logger.info("Task '%s' queued on stream '%s'", task.title, stream_key)
+    try:
+        await redis_client.xadd(stream_key, {"task": task_payload})
+        logger.info("Task '%s' queued on stream '%s'", task.title, stream_key)
+    except Exception as exc:
+        logger.error(
+            "Failed to queue task '%s' on stream '%s': %s",
+            task.id, stream_key, exc, exc_info=True,
+        )
 
     return task
 
