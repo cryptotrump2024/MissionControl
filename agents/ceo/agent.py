@@ -16,7 +16,7 @@ class CEOAgent(BaseAgent):
             name="CEO Agent",
             type="ceo",
             tier=1,
-            model="claude-sonnet-4-6",
+            model="moonshotai/kimi-k2",
             capabilities=[
                 "Strategic planning",
                 "Task decomposition",

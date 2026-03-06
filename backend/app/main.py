@@ -3,8 +3,14 @@ import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from app.config import get_settings
+from app.database import async_session
 from app.routers import agents, tasks, logs, costs, health, approvals
+from app.services.heartbeat import check_heartbeats
+from app.services.alert_engine import check_alerts
+from app.services.redis_client import get_redis, close_redis
 from app.services.ws_manager import ws_manager
 
 settings = get_settings()
@@ -32,6 +38,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+_scheduler = AsyncIOScheduler()
+
+
+async def _heartbeat_job() -> None:
+    try:
+        async with async_session() as db:
+            await check_heartbeats(db, settings.heartbeat_timeout_seconds)
+    except Exception as exc:
+        logger.error("Heartbeat job failed: %s", exc, exc_info=True)
+
+
+async def _alert_job() -> None:
+    try:
+        async with async_session() as db:
+            await check_alerts(db)
+    except Exception as exc:
+        logger.error("Alert job failed: %s", exc, exc_info=True)
+
+
 # Routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(agents.router, prefix="/api/agents", tags=["Agents"])
@@ -55,13 +80,34 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 @app.on_event("startup")
-async def startup_event():
+async def startup_event() -> None:
     logger.info("Mission Control starting up...")
-    # TODO: Run Alembic migrations
-    # TODO: Start background services (heartbeat, cost aggregator, alerts)
+    # Warm up Redis — fail fast if Redis is unreachable
+    try:
+        await get_redis().ping()
+        logger.info("Redis connection OK")
+    except Exception as exc:
+        logger.critical("Redis unreachable at startup: %s", exc)
+        raise
+    # Schedule background jobs
+    _scheduler.add_job(_heartbeat_job, "interval", seconds=30, id="heartbeat")
+    _scheduler.add_job(
+        _alert_job,
+        "interval",
+        seconds=settings.alert_check_interval_seconds,
+        id="alerts",
+    )
+    _scheduler.start()
+    logger.info(
+        "Background services started (heartbeat=30s, alerts=%ds)",
+        settings.alert_check_interval_seconds,
+    )
     logger.info("Mission Control ready.")
 
 
 @app.on_event("shutdown")
-async def shutdown_event():
+async def shutdown_event() -> None:
     logger.info("Mission Control shutting down...")
+    _scheduler.shutdown(wait=False)
+    await close_redis()
+    logger.info("Mission Control stopped.")

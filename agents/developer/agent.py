@@ -16,7 +16,7 @@ class DeveloperAgent(BaseAgent):
             name="Code Assistant Agent",
             type="developer",
             tier=2,
-            model="claude-sonnet-4-6",
+            model="moonshotai/kimi-k2",
             capabilities=[
                 "Code generation",
                 "Code review",
