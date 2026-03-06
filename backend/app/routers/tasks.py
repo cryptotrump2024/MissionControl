@@ -1,3 +1,5 @@
+import json
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -9,7 +11,10 @@ from app.database import get_db
 from app.models.task import Task
 from app.models.agent import Agent
 from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskListResponse
+from app.services.redis_client import get_redis
 from app.services.ws_manager import ws_manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -52,6 +57,23 @@ async def create_task(task_in: TaskCreate, db: AsyncSession = Depends(get_db)):
         "agent_id": str(task.agent_id) if task.agent_id else None,
         "priority": task.priority,
     })
+
+    # Push to Redis Stream so the appropriate agent picks it up
+    stream_key = f"tasks:{task.delegated_to or 'ceo'}"
+    task_payload = json.dumps({
+        "id": str(task.id),
+        "title": task.title,
+        "description": task.description or "",
+        "priority": task.priority,
+        "input_data": task.input_data or {},
+        "agent_id": str(task.agent_id) if task.agent_id else None,
+        "delegated_by": task.delegated_by,
+        "delegated_to": task.delegated_to,
+        "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
+    })
+    redis_client = get_redis()
+    await redis_client.xadd(stream_key, {"task": task_payload})
+    logger.info("Task '%s' queued on stream '%s'", task.title, stream_key)
 
     return task
 
