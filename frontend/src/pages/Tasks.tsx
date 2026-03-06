@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { tasksApi } from '@/api/client';
 import type { Task } from '@/types';
 
@@ -13,24 +14,12 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Tasks() {
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
-  const [showCreate, setShowCreate] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 5 });
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', filterStatus],
     queryFn: () => tasksApi.list({ status: filterStatus }),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: tasksApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      setShowCreate(false);
-      setNewTask({ title: '', description: '', priority: 5 });
-    },
   });
 
   const tasks = data?.tasks || [];
@@ -51,62 +40,24 @@ export default function Tasks() {
             <option value="completed">Completed</option>
             <option value="failed">Failed</option>
           </select>
-          <button className="mc-btn-primary text-xs" onClick={() => setShowCreate(!showCreate)}>
+          <button className="mc-btn-primary text-xs" onClick={() => navigate('/tasks/create')}>
             + New Task
           </button>
         </div>
       </div>
-
-      {/* Create Task Form */}
-      {showCreate && (
-        <div className="mc-card mb-6">
-          <h3 className="text-sm font-semibold mb-3">Create Task</h3>
-          <div className="space-y-3">
-            <input
-              className="mc-input w-full"
-              placeholder="Task title..."
-              value={newTask.title}
-              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-            />
-            <textarea
-              className="mc-input w-full h-20 resize-none"
-              placeholder="Task description (optional)..."
-              value={newTask.description}
-              onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-            />
-            <div className="flex items-center gap-4">
-              <label className="text-xs text-mc-text-muted">
-                Priority:
-                <select
-                  className="mc-input text-xs ml-2"
-                  value={newTask.priority}
-                  onChange={(e) => setNewTask({ ...newTask, priority: Number(e.target.value) })}
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((p) => (
-                    <option key={p} value={p}>{p} {p === 1 ? '(Highest)' : p === 10 ? '(Lowest)' : ''}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="flex-1" />
-              <button className="mc-btn-secondary text-xs" onClick={() => setShowCreate(false)}>Cancel</button>
-              <button
-                className="mc-btn-primary text-xs"
-                disabled={!newTask.title || createMutation.isPending}
-                onClick={() => createMutation.mutate(newTask)}
-              >
-                {createMutation.isPending ? 'Creating...' : 'Create Task'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Task List */}
       {isLoading ? (
         <p className="text-mc-text-muted">Loading tasks...</p>
       ) : tasks.length === 0 ? (
         <div className="mc-card text-center py-12">
-          <p className="text-mc-text-muted">No tasks yet. Create one or submit via the API.</p>
+          <p className="text-mc-text-muted">No tasks yet.</p>
+          <button
+            className="mc-btn-primary text-xs mt-4"
+            onClick={() => navigate('/tasks/create')}
+          >
+            + Create your first task
+          </button>
         </div>
       ) : (
         <div className="space-y-2">
@@ -114,7 +65,7 @@ export default function Tasks() {
             <div
               key={task.id}
               className="mc-card flex items-center justify-between cursor-pointer hover:border-mc-border-secondary transition-colors"
-              onClick={() => setSelectedTask(selectedTask?.id === task.id ? null : task)}
+              onClick={() => navigate(`/tasks/${task.id}`)}
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <span className={`mc-badge text-[10px] ${STATUS_COLORS[task.status] || ''}`}>
@@ -130,41 +81,10 @@ export default function Tasks() {
                 {task.tokens_used > 0 && <span>{task.tokens_used.toLocaleString()} tokens</span>}
                 {task.cost > 0 && <span className="text-mc-accent-amber">${task.cost.toFixed(4)}</span>}
                 <span>{new Date(task.created_at).toLocaleTimeString()}</span>
+                <span className="text-mc-accent-blue text-[10px]">→</span>
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Task Detail Panel */}
-      {selectedTask && (
-        <div className="mc-card mt-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold">{selectedTask.title}</h3>
-            <button className="text-xs text-mc-text-muted hover:text-mc-text-primary" onClick={() => setSelectedTask(null)}>Close</button>
-          </div>
-          <div className="space-y-2 text-xs">
-            {selectedTask.description && <p className="text-mc-text-secondary">{selectedTask.description}</p>}
-            <div className="grid grid-cols-2 gap-2">
-              <div><span className="text-mc-text-muted">Status: </span>{selectedTask.status}</div>
-              <div><span className="text-mc-text-muted">Priority: </span>{selectedTask.priority}</div>
-              <div><span className="text-mc-text-muted">Tokens: </span>{selectedTask.tokens_used.toLocaleString()}</div>
-              <div><span className="text-mc-text-muted">Cost: </span>${selectedTask.cost.toFixed(4)}</div>
-            </div>
-            {selectedTask.output_data && (
-              <div>
-                <p className="text-mc-text-muted mb-1">Output:</p>
-                <pre className="bg-mc-bg-secondary p-2 rounded text-[11px] overflow-x-auto max-h-40">
-                  {JSON.stringify(selectedTask.output_data, null, 2)}
-                </pre>
-              </div>
-            )}
-            {selectedTask.error_message && (
-              <div className="bg-mc-accent-red/10 border border-mc-accent-red/20 rounded p-2">
-                <p className="text-mc-accent-red">{selectedTask.error_message}</p>
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>

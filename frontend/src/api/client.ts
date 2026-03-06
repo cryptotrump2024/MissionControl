@@ -25,7 +25,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ── Agents ──────────────────────────────────────────────────────────
 
-import type { Agent, AgentListResponse, Task, TaskListResponse, LogEntry, CostSummary } from '@/types';
+import type { Agent, AgentListResponse, Task, TaskListResponse, LogEntry, CostSummary, CostRecord } from '@/types';
 
 export const agentsApi = {
   list: (params?: { status?: string; tier?: number }) => {
@@ -66,7 +66,20 @@ export const tasksApi = {
   get: (id: string) =>
     request<Task>(`/api/tasks/${id}`),
 
-  create: (data: { title: string; description?: string; priority?: number; input_data?: Record<string, unknown> }) =>
+  /** Fetch all direct children of a task (tasks with parent_task_id === id). */
+  subtasks: (parentId: string) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('parent_task_id', parentId);
+    return request<TaskListResponse>(`/api/tasks?${searchParams.toString()}`);
+  },
+
+  create: (data: {
+    title: string;
+    description?: string;
+    priority?: number;
+    input_data?: Record<string, unknown>;
+    delegated_to?: string;
+  }) =>
     request<Task>('/api/tasks', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -104,6 +117,16 @@ export const costsApi = {
     request<Array<{ date: string; cost: number; input_tokens: number; output_tokens: number }>>(
       `/api/costs/daily?days=${days}`
     ),
+
+  /** List individual cost records for the detailed table. */
+  records: (params?: { agent_id?: string; task_id?: string; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.agent_id) searchParams.set('agent_id', params.agent_id);
+    if (params?.task_id) searchParams.set('task_id', params.task_id);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const qs = searchParams.toString();
+    return request<CostRecord[]>(`/api/costs${qs ? `?${qs}` : ''}`);
+  },
 };
 
 // ── Approvals ───────────────────────────────────────────────────────

@@ -6,6 +6,8 @@ import Layout from '@/components/Layout';
 import Dashboard from '@/pages/Dashboard';
 import Agents from '@/pages/Agents';
 import Tasks from '@/pages/Tasks';
+import TaskDetail from '@/pages/TaskDetail';
+import TaskCreate from '@/pages/TaskCreate';
 import Logs from '@/pages/Logs';
 import Costs from '@/pages/Costs';
 import Approvals from '@/pages/Approvals';
@@ -29,6 +31,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/" element={<Dashboard />} />
             <Route path="/agents" element={<Agents />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/tasks/create" element={<TaskCreate />} />
+            <Route path="/tasks/:taskId" element={<TaskDetail />} />
             <Route path="/logs" element={<Logs />} />
             <Route path="/costs" element={<Costs />} />
             <Route path="/approvals" element={<Approvals />} />
