@@ -111,6 +111,59 @@ class MCClient:
         response.raise_for_status()
         return response.json()
 
+    async def get_subtasks(self, parent_id: str) -> list:
+        """Fetch all subtasks for a given parent task ID."""
+        response = await self.client.get(f"/api/tasks/?parent_task_id={parent_id}")
+        response.raise_for_status()
+        data = response.json()
+        # Handle both list response and paginated response
+        if isinstance(data, list):
+            return data
+        return data.get("items", data.get("tasks", []))
+
+    async def update_task_status(
+        self, task_id: str, status: str, result: str | None = None
+    ) -> dict:
+        """Update a task's status and optionally its result/output."""
+        updates: dict = {"status": status}
+        if result is not None:
+            updates["output_data"] = {"result": result}
+        return await self.update_task(task_id, **updates)
+
+    async def poll_subtask_results(
+        self, parent_task_id: str, timeout_seconds: int = 300
+    ) -> list:
+        """
+        Poll until all subtasks of a parent task are in a terminal state
+        (completed or failed), or until the timeout is reached.
+
+        Returns the list of subtask dicts as they were when polling ended.
+        """
+        import asyncio as _asyncio
+
+        terminal_states = {"completed", "failed", "cancelled"}
+        deadline = _asyncio.get_event_loop().time() + timeout_seconds
+
+        while True:
+            subtasks = await self.get_subtasks(parent_task_id)
+
+            if subtasks:
+                all_done = all(
+                    t.get("status") in terminal_states for t in subtasks
+                )
+                if all_done:
+                    return subtasks
+
+            remaining = deadline - _asyncio.get_event_loop().time()
+            if remaining <= 0:
+                logger.warning(
+                    f"poll_subtask_results timed out after {timeout_seconds}s "
+                    f"for parent_task_id={parent_task_id}"
+                )
+                return subtasks if subtasks else []
+
+            await _asyncio.sleep(min(5, remaining))
+
     # ── Logging ──────────────────────────────────────────────────────
 
     async def log(
