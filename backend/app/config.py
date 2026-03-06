@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -27,6 +28,13 @@ class Settings(BaseSettings):
     heartbeat_timeout_seconds: int = 120
     cost_aggregation_interval_seconds: int = 300
     alert_check_interval_seconds: int = 60
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def fix_database_url(cls, v: str) -> str:
+        if isinstance(v, str) and v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     @property
     def cors_origins_list(self) -> list[str]:
