@@ -16,7 +16,7 @@ class ResearcherAgent(BaseAgent):
             name="Research Agent",
             type="researcher",
             tier=2,
-            model="claude-haiku-4-5",  # Cheaper model for research tasks
+            model="moonshotai/kimi-k2",  # OpenRouter: Moonshot Kimi K2
             capabilities=[
                 "Web search",
                 "Data gathering",

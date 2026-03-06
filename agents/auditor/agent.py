@@ -16,7 +16,7 @@ class AuditorAgent(BaseAgent):
             name="Auditor Agent",
             type="auditor",
             tier=0,
-            model="claude-sonnet-4-6",
+            model="moonshotai/kimi-k2",
             capabilities=[
                 "Quality review",
                 "Accuracy verification",

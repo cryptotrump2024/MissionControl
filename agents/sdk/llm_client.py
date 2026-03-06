@@ -16,9 +16,12 @@ logger = logging.getLogger(__name__)
 
 # Claude model pricing per 1M tokens (as of March 2026)
 MODEL_PRICING = {
+    # Anthropic Claude (direct)
     "claude-opus-4-0": {"input": 15.0, "output": 75.0},
     "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
     "claude-haiku-4-5": {"input": 0.80, "output": 4.0},
+    # OpenRouter — Moonshot Kimi K2
+    "moonshotai/kimi-k2": {"input": 1.0, "output": 3.0},
 }
 
 

@@ -5,7 +5,7 @@ agents:
   ceo:
     name: "CEO Agent"
     tier: 1
-    model: claude-sonnet-4-6
+    model: moonshotai/kimi-k2
     token_budget_daily: 100000
     delegation_targets: [researcher, writer, developer]
     capabilities:
@@ -25,7 +25,7 @@ agents:
   researcher:
     name: "Research Agent"
     tier: 2
-    model: claude-haiku-4-5
+    model: moonshotai/kimi-k2
     token_budget_daily: 50000
     delegation_targets: []
     capabilities:
@@ -44,7 +44,7 @@ agents:
   writer:
     name: "Content Writer Agent"
     tier: 2
-    model: claude-sonnet-4-6
+    model: moonshotai/kimi-k2
     token_budget_daily: 50000
     delegation_targets: []
     capabilities:
@@ -63,7 +63,7 @@ agents:
   developer:
     name: "Code Assistant Agent"
     tier: 2
-    model: claude-sonnet-4-6
+    model: moonshotai/kimi-k2
     token_budget_daily: 75000
     delegation_targets: []
     capabilities:
@@ -82,7 +82,7 @@ agents:
   auditor:
     name: "Auditor Agent"
     tier: 0
-    model: claude-sonnet-4-6
+    model: moonshotai/kimi-k2
     token_budget_daily: 30000
     delegation_targets: []
     capabilities:

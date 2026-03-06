@@ -16,7 +16,7 @@ class WriterAgent(BaseAgent):
             name="Content Writer Agent",
             type="writer",
             tier=2,
-            model="claude-sonnet-4-6",
+            model="moonshotai/kimi-k2",
             capabilities=[
                 "Content writing",
                 "Copywriting",
