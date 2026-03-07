@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksApi, agentsApi, exportApi } from '@/api/client';
 import type { Task } from '@/types';
 
@@ -21,6 +21,21 @@ export default function Tasks() {
   const [filterAgent, setFilterAgent] = useState<string | undefined>();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showReassign, setShowReassign] = useState(false);
+  const [reassignAgentId, setReassignAgentId] = useState('');
+  const qc = useQueryClient();
+
+  const bulkMutation = useMutation({
+    mutationFn: (params: { action: 'cancel' | 'reassign'; agent_id?: string }) =>
+      tasksApi.bulk({ action: params.action, task_ids: [...selected], agent_id: params.agent_id }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      setSelected(new Set());
+      setShowReassign(false);
+      setReassignAgentId('');
+    },
+  });
 
   const { data: agentData } = useQuery({
     queryKey: ['agents'],
@@ -29,9 +44,9 @@ export default function Tasks() {
   });
 
   // Reset page when filters change
-  const handleStatusChange = (val: string) => { setFilterStatus(val || undefined); setPage(0); };
-  const handleAgentChange = (val: string) => { setFilterAgent(val || undefined); setPage(0); };
-  const handleSearchChange = (val: string) => { setSearch(val); setPage(0); };
+  const handleStatusChange = (val: string) => { setFilterStatus(val || undefined); setPage(0); setSelected(new Set()); };
+  const handleAgentChange = (val: string) => { setFilterAgent(val || undefined); setPage(0); setSelected(new Set()); };
+  const handleSearchChange = (val: string) => { setSearch(val); setPage(0); setSelected(new Set()); };
 
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', filterStatus, filterAgent, page],
@@ -53,6 +68,17 @@ export default function Tasks() {
   const totalPages = Math.ceil(tasks.length / PAGE_SIZE);
   const showingFrom = tasks.length === 0 ? 0 : page * PAGE_SIZE + 1;
   const showingTo = Math.min((page + 1) * PAGE_SIZE, tasks.length);
+
+  const allPageSelected = pagedTasks.length > 0 && pagedTasks.every((t: Task) => selected.has(t.id));
+  const toggleAll = () => {
+    if (allPageSelected) {
+      setSelected((prev) => { const s = new Set(prev); pagedTasks.forEach((t: Task) => s.delete(t.id)); return s; });
+    } else {
+      setSelected((prev) => { const s = new Set(prev); pagedTasks.forEach((t: Task) => s.add(t.id)); return s; });
+    }
+  };
+  const toggleOne = (id: string) =>
+    setSelected((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
   return (
     <div>
@@ -123,6 +149,56 @@ export default function Tasks() {
         </div>
       </div>
 
+      {/* Bulk action bar — visible when tasks are selected */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 mb-3 p-2.5 bg-mc-bg-secondary border border-mc-border-primary rounded-lg flex-wrap">
+          <span className="text-xs text-mc-text-secondary font-medium">{selected.size} selected</span>
+          <button
+            className="mc-btn text-xs bg-mc-accent-red/20 text-mc-accent-red hover:bg-mc-accent-red/30 border border-mc-accent-red/30"
+            onClick={() => bulkMutation.mutate({ action: 'cancel' })}
+            disabled={bulkMutation.isPending}
+          >
+            Cancel Selected
+          </button>
+          <div className="relative">
+            <button
+              className="mc-btn-secondary text-xs"
+              onClick={() => setShowReassign((v) => !v)}
+              disabled={bulkMutation.isPending}
+            >
+              Reassign ▾
+            </button>
+            {showReassign && (
+              <div className="absolute top-9 left-0 z-20 bg-mc-bg-secondary border border-mc-border-primary rounded shadow-lg p-2 min-w-44">
+                <select
+                  className="mc-input text-xs w-full"
+                  value={reassignAgentId}
+                  onChange={(e) => setReassignAgentId(e.target.value)}
+                >
+                  <option value="">Select agent…</option>
+                  {(agentData?.agents || []).map((agent) => (
+                    <option key={agent.id} value={agent.id}>{agent.name}</option>
+                  ))}
+                </select>
+                <button
+                  className="mc-btn-primary text-xs w-full mt-2"
+                  disabled={!reassignAgentId || bulkMutation.isPending}
+                  onClick={() => bulkMutation.mutate({ action: 'reassign', agent_id: reassignAgentId })}
+                >
+                  Apply
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            className="text-xs text-mc-text-muted hover:text-mc-text-primary ml-auto"
+            onClick={() => setSelected(new Set())}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Task List */}
       {isLoading ? (
         <div className="space-y-2">
@@ -148,6 +224,11 @@ export default function Tasks() {
         </div>
       ) : (
         <>
+          {/* Select-all header */}
+          <div className="flex items-center gap-2 mb-1 px-1 py-1 text-xs text-mc-text-muted">
+            <input type="checkbox" checked={allPageSelected} onChange={toggleAll} className="rounded" />
+            <span>{allPageSelected ? 'Deselect all' : `Select all ${pagedTasks.length} on this page`}</span>
+          </div>
           <div className="overflow-x-auto">
           <div className="space-y-2">
             {pagedTasks.map((task: Task) => (
@@ -156,6 +237,18 @@ export default function Tasks() {
                 className="mc-card flex items-center justify-between cursor-pointer hover:border-mc-border-secondary transition-colors"
                 onClick={() => navigate(`/tasks/${task.id}`)}
               >
+                {/* Checkbox */}
+                <div
+                  className="flex-shrink-0 mr-2"
+                  onClick={(e) => { e.stopPropagation(); toggleOne(task.id); }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(task.id)}
+                    onChange={() => toggleOne(task.id)}
+                    className="rounded"
+                  />
+                </div>
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <span className={`mc-badge text-[10px] whitespace-nowrap ${STATUS_COLORS[task.status] || ''}`}>
                     {task.status.replace('_', ' ')}
@@ -186,7 +279,7 @@ export default function Tasks() {
               <div className="flex items-center gap-2">
                 <button
                   className="mc-btn-secondary text-xs py-1 px-2 disabled:opacity-40"
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  onClick={() => { setPage((p) => Math.max(0, p - 1)); setSelected(new Set()); }}
                   disabled={page === 0}
                 >
                   ← Prev
@@ -196,7 +289,7 @@ export default function Tasks() {
                 </span>
                 <button
                   className="mc-btn-secondary text-xs py-1 px-2 disabled:opacity-40"
-                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                  onClick={() => { setPage((p) => Math.min(totalPages - 1, p + 1)); setSelected(new Set()); }}
                   disabled={page >= totalPages - 1}
                 >
                   Next →

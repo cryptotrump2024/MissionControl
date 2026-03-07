@@ -127,6 +127,12 @@ export const tasksApi = {
       method: 'PATCH',
       body: JSON.stringify({ status: 'queued' }),
     }),
+
+  bulk: (body: { action: 'cancel' | 'reassign'; task_ids: string[]; agent_id?: string }) =>
+    request<{ updated: number; skipped: number }>('/api/tasks/bulk', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
 
 // ── Logs ────────────────────────────────────────────────────────────
