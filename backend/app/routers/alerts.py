@@ -1,12 +1,40 @@
+import asyncio
+import logging
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+import httpx
+
 from app.database import get_db
 from app.models.alert import Alert
-from app.schemas.alert import AlertResponse
+from app.schemas.alert import AlertCreate, AlertResponse
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
+
+
+async def _fire_webhook(alert_data: dict) -> None:
+    """Fire-and-forget webhook delivery. Logs failure, never raises."""
+    try:
+        from app.database import async_session
+        from app.models.setting import AppSetting
+        from sqlalchemy import select as _select
+        async with async_session() as db:
+            result = await db.execute(
+                _select(AppSetting).where(AppSetting.key == "webhook_url")
+            )
+            row = result.scalar_one_or_none()
+            url = row.value if row else ""
+        if not url:
+            return
+        payload = {"event": "alert", "source": "MissionControl", **alert_data}
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json=payload)
+    except Exception as exc:
+        logger.warning("Webhook delivery failed: %s", exc)
 
 
 @router.get("", response_model=list[AlertResponse])
@@ -28,13 +56,34 @@ async def list_alerts(
     return result.scalars().all()
 
 
+@router.post("", response_model=AlertResponse, status_code=201)
+async def create_alert(alert_in: AlertCreate, db: AsyncSession = Depends(get_db)):
+    """Create a new alert and fire webhook if configured."""
+    alert = Alert(
+        type=alert_in.type,
+        severity=alert_in.severity,
+        message=alert_in.message,
+        agent_id=alert_in.agent_id,
+        task_id=alert_in.task_id,
+    )
+    db.add(alert)
+    await db.commit()
+    await db.refresh(alert)
+    asyncio.create_task(_fire_webhook({
+        "alert_id": str(alert.id),
+        "type": alert.type,
+        "severity": alert.severity,
+        "message": alert.message,
+    }))
+    return alert
+
+
 @router.patch("/{alert_id}/acknowledge", response_model=AlertResponse)
 async def acknowledge_alert(
     alert_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
     """Mark an alert as acknowledged."""
-    from fastapi import HTTPException
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
