@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -119,6 +120,45 @@ async def list_tasks(
     total = total_result.scalar()
 
     return TaskListResponse(tasks=tasks, total=total)
+
+
+class _BulkAction(BaseModel):
+    action: str
+    task_ids: list[UUID]
+    agent_id: UUID | None = None
+
+
+@router.post("/bulk")
+async def bulk_task_action(body: _BulkAction, db: AsyncSession = Depends(get_db)):
+    """Bulk cancel or reassign tasks. action: 'cancel' | 'reassign'. Max 100 task_ids."""
+    if body.action not in ('cancel', 'reassign'):
+        raise HTTPException(status_code=422, detail="action must be 'cancel' or 'reassign'")
+    if not 1 <= len(body.task_ids) <= 100:
+        raise HTTPException(status_code=422, detail="task_ids must contain 1–100 items")
+    if body.action == 'reassign' and not body.agent_id:
+        raise HTTPException(status_code=422, detail="agent_id required for reassign")
+
+    result = await db.execute(select(Task).where(Task.id.in_(body.task_ids)))
+    db_tasks = result.scalars().all()
+
+    updated = 0
+    skipped = 0
+    now = datetime.now(timezone.utc)
+
+    for task in db_tasks:
+        if body.action == 'cancel':
+            if task.status in ('queued', 'running'):
+                task.status = 'cancelled'
+                task.completed_at = now
+                updated += 1
+            else:
+                skipped += 1
+        elif body.action == 'reassign':
+            task.agent_id = body.agent_id
+            updated += 1
+
+    await db.commit()
+    return {"updated": updated, "skipped": skipped}
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
