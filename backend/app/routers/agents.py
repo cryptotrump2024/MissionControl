@@ -1,8 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, cast
+from sqlalchemy import Date as SADate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -111,9 +112,12 @@ async def get_agent_metrics(
     db: AsyncSession = Depends(get_db),
 ):
     """Get performance metrics for an agent."""
-    from app.models.task import Task
+    # 404 guard
+    agent_check = await db.execute(select(Agent.id).where(Agent.id == agent_id))
+    if not agent_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Agent not found")
 
-    # Total tasks and status breakdown
+    # Status breakdown
     task_result = await db.execute(
         select(Task.status, func.count(Task.id).label('count'))
         .where(Task.agent_id == agent_id)
@@ -140,11 +144,33 @@ async def get_agent_metrics(
     )
     avg_duration = duration_result.scalar() or 0
 
-    # Total cost
+    # Total + avg cost
     cost_result = await db.execute(
         select(func.sum(Task.cost)).where(Task.agent_id == agent_id)
     )
     total_cost = cost_result.scalar() or 0.0
+    avg_cost = round(total_cost / total, 6) if total > 0 else 0.0
+
+    # Daily volume — last 7 days (UTC dates)
+    today = datetime.now(timezone.utc).date()
+    week_start = today - timedelta(days=6)
+    week_start_dt = datetime(week_start.year, week_start.month, week_start.day, tzinfo=timezone.utc)
+
+    daily_result = await db.execute(
+        select(
+            cast(func.timezone('UTC', Task.created_at), SADate).label('day'),
+            func.count(Task.id).label('count')
+        )
+        .where(Task.agent_id == agent_id)
+        .where(Task.created_at >= week_start_dt)
+        .group_by(cast(func.timezone('UTC', Task.created_at), SADate))
+        .order_by(cast(func.timezone('UTC', Task.created_at), SADate))
+    )
+    day_map = {str(r.day): r.count for r in daily_result.fetchall()}
+    daily_volume = [
+        {"date": str(today - timedelta(days=i)), "count": day_map.get(str(today - timedelta(days=i)), 0)}
+        for i in range(6, -1, -1)
+    ]
 
     return {
         "agent_id": str(agent_id),
@@ -156,8 +182,10 @@ async def get_agent_metrics(
         "success_rate": round((completed / total * 100) if total > 0 else 0, 1),
         "failure_rate": round((failed / total * 100) if total > 0 else 0, 1),
         "avg_duration_seconds": round(avg_duration, 1),
+        "avg_cost_usd": avg_cost,
         "total_cost_usd": round(total_cost, 6),
         "status_breakdown": status_counts,
+        "daily_volume": daily_volume,
     }
 
 @router.get("/{agent_id}", response_model=AgentResponse)
