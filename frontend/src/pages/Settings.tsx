@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { healthApi, costsApi } from '@/api/client';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { healthApi, costsApi, settingsApi } from '@/api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
 
 export default function Settings() {
   const [copied, setCopied] = useState(false);
+  const [budgetInput, setBudgetInput] = useState('');
+  const [webhookInput, setWebhookInput] = useState('');
+  const [webhookTesting, setWebhookTesting] = useState(false);
+  const [webhookResult, setWebhookResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const queryClient = useQueryClient();
 
   const { data: health, isLoading } = useQuery({
     queryKey: ['health'],
@@ -20,6 +26,45 @@ export default function Settings() {
     refetchInterval: 60_000,
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: settingsApi.get,
+  });
+
+  useEffect(() => {
+    if (settings) {
+      if (settings.daily_budget_usd !== undefined) {
+        setBudgetInput(settings.daily_budget_usd);
+      }
+      if (settings.webhook_url !== undefined) {
+        setWebhookInput(settings.webhook_url);
+      }
+    }
+  }, [settings]);
+
+  const updateMutation = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) =>
+      settingsApi.update(key, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      queryClient.invalidateQueries({ queryKey: ['costs', 'today'] });
+    },
+  });
+
+  const handleTestWebhook = async () => {
+    setWebhookTesting(true);
+    setWebhookResult(null);
+    try {
+      const result = await settingsApi.testWebhook();
+      setWebhookResult({ ok: true, message: `Delivered (HTTP ${result.http_status})` });
+    } catch (err: unknown) {
+      const detail = (err as { detail?: string })?.detail ?? String(err);
+      setWebhookResult({ ok: false, message: detail });
+    } finally {
+      setWebhookTesting(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -27,9 +72,93 @@ export default function Settings() {
     });
   };
 
+  const budgetValue = todayCost?.budget_usd ?? 1.0;
+
   return (
     <div className="max-w-2xl space-y-6">
       <h2 className="text-xl font-bold">Settings</h2>
+
+      {/* Configuration */}
+      <div className="mc-card">
+        <h3 className="text-sm font-semibold text-mc-text-secondary mb-4">Configuration</h3>
+        <div className="space-y-5">
+          {/* Daily Budget Input */}
+          <div>
+            <label className="block text-xs text-mc-text-muted mb-1.5">Daily Budget (USD)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={0.01}
+                max={100}
+                step={0.01}
+                value={budgetInput}
+                onChange={e => setBudgetInput(e.target.value)}
+                className="flex-1 bg-mc-bg-tertiary border border-mc-border rounded px-3 py-1.5 text-xs text-mc-text-primary focus:outline-none focus:border-mc-accent-blue"
+                placeholder="1.00"
+              />
+              <button
+                className="mc-btn text-[10px] bg-mc-accent-blue text-white hover:opacity-90 disabled:opacity-50"
+                disabled={updateMutation.isPending}
+                onClick={() => updateMutation.mutate({ key: 'daily_budget_usd', value: budgetInput })}
+              >
+                {updateMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+            {updateMutation.isError && (updateMutation.variables as { key: string } | undefined)?.key === 'daily_budget_usd' && (
+              <p className="text-xs text-mc-accent-red mt-1">
+                {String((updateMutation.error as { detail?: string })?.detail ?? updateMutation.error)}
+              </p>
+            )}
+            {updateMutation.isSuccess && (updateMutation.data as { key: string } | undefined)?.key === 'daily_budget_usd' && (
+              <p className="text-xs text-mc-accent-green mt-1">Budget saved.</p>
+            )}
+          </div>
+
+          {/* Webhook URL Input */}
+          <div>
+            <label className="block text-xs text-mc-text-muted mb-1.5">Webhook URL (optional)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="url"
+                value={webhookInput}
+                onChange={e => setWebhookInput(e.target.value)}
+                className="flex-1 bg-mc-bg-tertiary border border-mc-border rounded px-3 py-1.5 text-xs text-mc-text-primary focus:outline-none focus:border-mc-accent-blue font-mono"
+                placeholder="https://hooks.example.com/..."
+              />
+              <button
+                className="mc-btn text-[10px] bg-mc-accent-blue text-white hover:opacity-90 disabled:opacity-50"
+                disabled={updateMutation.isPending}
+                onClick={() => updateMutation.mutate({ key: 'webhook_url', value: webhookInput })}
+              >
+                {updateMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                className="mc-btn text-[10px] bg-mc-bg-tertiary text-mc-text-secondary hover:bg-mc-bg-hover disabled:opacity-50"
+                disabled={webhookTesting || !webhookInput}
+                onClick={handleTestWebhook}
+              >
+                {webhookTesting ? 'Testing...' : 'Test'}
+              </button>
+            </div>
+            {webhookResult && (
+              <p className={`text-xs mt-1 ${webhookResult.ok ? 'text-mc-accent-green' : 'text-mc-accent-red'}`}>
+                {webhookResult.ok ? 'OK' : 'FAIL'} {webhookResult.message}
+              </p>
+            )}
+            {updateMutation.isError && (updateMutation.variables as { key: string } | undefined)?.key === 'webhook_url' && (
+              <p className="text-xs text-mc-accent-red mt-1">
+                {String((updateMutation.error as { detail?: string })?.detail ?? updateMutation.error)}
+              </p>
+            )}
+            {updateMutation.isSuccess && (updateMutation.data as { key: string } | undefined)?.key === 'webhook_url' && (
+              <p className="text-xs text-mc-accent-green mt-1">Webhook URL saved.</p>
+            )}
+            <p className="text-[10px] text-mc-text-muted mt-1.5">
+              Receives a POST with JSON on each new alert. Must start with https://.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* System Info */}
       <div className="mc-card">
@@ -43,7 +172,7 @@ export default function Settings() {
                 className="mc-btn text-[10px] bg-mc-bg-tertiary text-mc-text-secondary hover:bg-mc-bg-hover"
                 onClick={() => copyToClipboard(API_URL)}
               >
-                {copied ? '✓' : 'Copy'}
+                {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
           </div>
@@ -91,26 +220,26 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Daily Budget */}
+      {/* Daily Budget Display */}
       <div className="mc-card">
         <h3 className="text-sm font-semibold text-mc-text-secondary mb-4">Daily Budget</h3>
         {todayCost ? (
           <div className="space-y-3">
             <div className="flex justify-between text-xs">
               <span className="text-mc-text-muted">Spent today</span>
-              <span className={`font-semibold ${todayCost.total_usd > 0.8 ? 'text-mc-accent-red' : 'text-mc-accent-amber'}`}>
+              <span className={`font-semibold ${todayCost.total_usd > budgetValue * 0.8 ? 'text-mc-accent-red' : 'text-mc-accent-amber'}`}>
                 ${todayCost.total_usd.toFixed(4)}
               </span>
             </div>
             <div className="h-2 bg-mc-bg-tertiary rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${todayCost.total_usd > 0.8 ? 'bg-mc-accent-red' : 'bg-mc-accent-amber'}`}
-                style={{ width: `${Math.min(100, (todayCost.total_usd / 1.0) * 100)}%` }}
+                className={`h-full rounded-full transition-all ${todayCost.total_usd > budgetValue * 0.8 ? 'bg-mc-accent-red' : 'bg-mc-accent-amber'}`}
+                style={{ width: `${Math.min(100, (todayCost.total_usd / budgetValue) * 100)}%` }}
               />
             </div>
             <div className="flex justify-between text-xs text-mc-text-muted">
               <span>$0</span>
-              <span>$1.00 daily limit</span>
+              <span>${budgetValue.toFixed(2)} daily limit</span>
             </div>
             <div className="grid grid-cols-3 gap-3 mt-2">
               <div>
