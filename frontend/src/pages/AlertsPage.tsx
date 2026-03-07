@@ -95,8 +95,23 @@ export default function AlertsPage() {
     },
   });
 
+  const [markingAll, setMarkingAll] = useState(false);
+
   const allAlerts = alerts ?? [];
   const unacknowledgedCount = allAlerts.filter((a) => !a.acknowledged).length;
+
+  async function handleMarkAllRead() {
+    const unread = allAlerts.filter((a) => !a.acknowledged);
+    if (unread.length === 0) return;
+    setMarkingAll(true);
+    try {
+      await Promise.all(unread.map((a) => alertsApi.acknowledge(a.id)));
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['alerts-unread-count'] });
+    } finally {
+      setMarkingAll(false);
+    }
+  }
 
   return (
     <div>
@@ -110,6 +125,15 @@ export default function AlertsPage() {
             </span>
           )}
         </div>
+        {unacknowledgedCount > 0 && (
+          <button
+            className="mc-btn-secondary text-xs"
+            onClick={handleMarkAllRead}
+            disabled={markingAll}
+          >
+            {markingAll ? 'Marking…' : `Mark all read (${unacknowledgedCount})`}
+          </button>
+        )}
       </div>
 
       {/* ── Filter Bar ── */}

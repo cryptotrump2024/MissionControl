@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { approvalsApi } from '@/api/client';
 import type { Task } from '@/types';
 
 export default function Approvals() {
   const queryClient = useQueryClient();
+  // Track which task is showing the reject dialog, and its reason text
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('Rejected by operator');
 
   const { data: pendingTasks, isLoading } = useQuery({
     queryKey: ['approvals'],
@@ -20,12 +24,25 @@ export default function Approvals() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (taskId: string) => approvalsApi.reject(taskId, 'Rejected by operator'),
+    mutationFn: ({ taskId, reason }: { taskId: string; reason: string }) =>
+      approvalsApi.reject(taskId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      setRejectingId(null);
+      setRejectReason('Rejected by operator');
     },
   });
+
+  function openReject(taskId: string) {
+    setRejectingId(taskId);
+    setRejectReason('Rejected by operator');
+  }
+
+  function cancelReject() {
+    setRejectingId(null);
+    setRejectReason('Rejected by operator');
+  }
 
   const tasks = pendingTasks || [];
 
@@ -78,23 +95,56 @@ export default function Approvals() {
                   )}
                 </div>
 
-                <div className="flex gap-2 ml-4">
-                  <button
-                    className="mc-btn text-xs bg-mc-accent-green/20 text-mc-accent-green hover:bg-mc-accent-green/30"
-                    onClick={() => approveMutation.mutate(task.id)}
-                    disabled={approveMutation.isPending}
-                  >
-                    ✓ Approve
-                  </button>
-                  <button
-                    className="mc-btn text-xs bg-mc-accent-red/20 text-mc-accent-red hover:bg-mc-accent-red/30"
-                    onClick={() => rejectMutation.mutate(task.id)}
-                    disabled={rejectMutation.isPending}
-                  >
-                    ✕ Reject
-                  </button>
-                </div>
+                {/* Action buttons — hidden when reject dialog is open for this task */}
+                {rejectingId !== task.id && (
+                  <div className="flex gap-2 ml-4 flex-shrink-0">
+                    <button
+                      className="mc-btn text-xs bg-mc-accent-green/20 text-mc-accent-green hover:bg-mc-accent-green/30"
+                      onClick={() => approveMutation.mutate(task.id)}
+                      disabled={approveMutation.isPending}
+                    >
+                      ✓ Approve
+                    </button>
+                    <button
+                      className="mc-btn text-xs bg-mc-accent-red/20 text-mc-accent-red hover:bg-mc-accent-red/30"
+                      onClick={() => openReject(task.id)}
+                    >
+                      ✕ Reject
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Inline reject dialog */}
+              {rejectingId === task.id && (
+                <div className="mt-4 pt-4 border-t border-mc-border-primary">
+                  <p className="text-xs text-mc-text-secondary mb-2 font-medium">Rejection reason:</p>
+                  <textarea
+                    className="w-full bg-mc-bg-secondary border border-mc-border-primary rounded px-3 py-2 text-sm text-mc-text-primary placeholder-mc-text-muted focus:outline-none focus:border-mc-accent-red resize-none"
+                    rows={2}
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Reason for rejection..."
+                    autoFocus
+                  />
+                  <div className="flex gap-2 mt-2 justify-end">
+                    <button
+                      className="mc-btn-secondary text-xs"
+                      onClick={cancelReject}
+                      disabled={rejectMutation.isPending}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="mc-btn text-xs bg-mc-accent-red/20 text-mc-accent-red hover:bg-mc-accent-red/30 border border-mc-accent-red/30"
+                      onClick={() => rejectMutation.mutate({ taskId: task.id, reason: rejectReason.trim() || 'Rejected by operator' })}
+                      disabled={rejectMutation.isPending}
+                    >
+                      {rejectMutation.isPending ? 'Rejecting…' : '✕ Confirm Reject'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
