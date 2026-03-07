@@ -225,4 +225,7 @@ export const healthApi = {
 
 export const devApi = {
   seed: () => request<{ created: { agents: number; tasks: number; logs: number } }>('/api/seed', { method: 'POST' }),
+  demoStart:  () => request<{ status: string }>('/api/demo/start',  { method: 'POST' }),
+  demoStop:   () => request<{ status: string }>('/api/demo/stop',   { method: 'POST' }),
+  demoStatus: () => request<{ running: boolean; tick: number }>('/api/demo/status'),
 };

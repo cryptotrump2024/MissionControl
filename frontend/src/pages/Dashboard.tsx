@@ -93,6 +93,27 @@ export default function Dashboard() {
     },
   });
 
+  const { data: demoStatus } = useQuery({
+    queryKey: ['demo-status'],
+    queryFn: devApi.demoStatus,
+    refetchInterval: 5000,
+  });
+
+  const demoStartMutation = useMutation({
+    mutationFn: devApi.demoStart,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['demo-status'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    },
+  });
+
+  const demoStopMutation = useMutation({
+    mutationFn: devApi.demoStop,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['demo-status'] }),
+  });
+
+  const isDemo = demoStatus?.running ?? false;
+
   const { data: stats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: dashboardApi.stats,
@@ -132,6 +153,20 @@ export default function Dashboard() {
             title="Create demo agents, tasks, and logs"
           >
             {seedMutation.isPending ? "Seeding..." : "Seed Demo Data"}
+          </button>
+          <button
+            className={`mc-btn text-xs flex items-center gap-2 ${
+              isDemo
+                ? 'bg-mc-accent-green/20 text-mc-accent-green hover:bg-mc-accent-green/30'
+                : 'mc-btn-secondary'
+            }`}
+            onClick={() => isDemo ? demoStopMutation.mutate() : demoStartMutation.mutate()}
+            disabled={demoStartMutation.isPending || demoStopMutation.isPending}
+          >
+            {isDemo && (
+              <span className="w-2 h-2 rounded-full bg-mc-accent-green animate-pulse inline-block" />
+            )}
+            {isDemo ? 'Stop Demo' : '▶ Demo Mode'}
           </button>
         </div>
       </div>
