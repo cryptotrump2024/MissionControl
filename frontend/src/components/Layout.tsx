@@ -3,6 +3,7 @@ import { useWSStore } from '@/stores/websocket';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { alertsApi } from '@/api/client';
+import { ToastContainer, useWSToasts } from '@/components/Toast';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '◉' },
@@ -21,6 +22,9 @@ export default function Layout() {
   useEffect(() => {
     connect();
   }, [connect]);
+
+  // Wire WS → toast notifications
+  useWSToasts();
 
   const { data: unreadData } = useQuery({
     queryKey: ['alerts-unread-count'],
@@ -101,6 +105,9 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Toast notifications — rendered at root so they overlay everything */}
+      <ToastContainer />
     </div>
   );
 }

@@ -110,6 +110,67 @@ function StatCard({
   );
 }
 
+
+// ── Cost Sparkline (7-day SVG) ─────────────────────────────────────────────
+
+function CostSparkline({ data }: { data: Array<{ date: string; cost: number }> }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-16 flex items-center justify-center">
+        <p className="text-xs text-mc-text-muted">No data</p>
+      </div>
+    );
+  }
+
+  const WIDTH = 200;
+  const HEIGHT = 48;
+  const PADDING = 4;
+  const values = data.map(d => d.cost);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const range = maxVal - minVal || 1;
+  const n = values.length;
+
+  const points = values.map((v, i) => {
+    const x = PADDING + (i / Math.max(n - 1, 1)) * (WIDTH - PADDING * 2);
+    const y = HEIGHT - PADDING - ((v - minVal) / range) * (HEIGHT - PADDING * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const polyline = points.join(" ");
+
+  const lastDate = data[data.length - 1]?.date?.slice(5) ?? "";
+  const firstDate = data[0]?.date?.slice(5) ?? "";
+  const totalCost = values.reduce((a, b) => a + b, 0);
+
+  return (
+    <div className="flex items-center gap-4">
+      <svg width={WIDTH} height={HEIGHT} className="flex-shrink-0">
+        <polyline
+          points={polyline}
+          fill="none"
+          stroke="#f59e0b"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {/* End dot */}
+        {points.length > 0 && (
+          <circle
+            cx={points[points.length - 1].split(",")[0]}
+            cy={points[points.length - 1].split(",")[1]}
+            r="3"
+            fill="#f59e0b"
+          />
+        )}
+      </svg>
+      <div className="text-xs text-mc-text-muted">
+        <p>{firstDate} – {lastDate}</p>
+        <p className="text-mc-accent-amber font-semibold mt-0.5">${totalCost.toFixed(4)} total</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────
 
 export default function Costs() {
@@ -209,6 +270,17 @@ export default function Costs() {
           color="text-mc-accent-purple"
         />
       </div>
+
+      {/* ── 7-Day Sparkline ── */}
+      {daily && daily.slice(-7).length > 0 && (
+        <div className="mc-card mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-mc-text-secondary">7-Day Cost Trend</h3>
+            <span className="text-[10px] text-mc-text-muted uppercase tracking-wider">Last 7 days</span>
+          </div>
+          <CostSparkline data={daily.slice(-7)} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* ── Cost by Agent — Bar Chart ── */}
