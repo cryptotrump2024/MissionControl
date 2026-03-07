@@ -145,6 +145,15 @@ export const logsApi = {
 // ── Costs ───────────────────────────────────────────────────────────
 
 export const costsApi = {
+  today: () => request<{
+    date: string;
+    total_usd: number;
+    input_tokens: number;
+    output_tokens: number;
+    record_count: number;
+    budget_remaining_usd: number;
+  }>('/api/costs/today'),
+
   summary: (period: string = 'today') =>
     request<CostSummary>(`/api/costs/summary?period=${period}`),
 

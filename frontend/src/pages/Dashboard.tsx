@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { agentsApi, tasksApi, dashboardApi, devApi } from '@/api/client';
+import { agentsApi, tasksApi, dashboardApi, devApi, costsApi } from '@/api/client';
 import { useWSStore } from '@/stores/websocket';
 import { STATUS_CONFIG, TIER_CONFIG } from '@/types';
 import type { Agent, Task, WSEvent } from '@/types';
@@ -108,6 +108,12 @@ export default function Dashboard() {
   const { data: taskData } = useQuery({
     queryKey: ['tasks'],
     queryFn: () => tasksApi.list(),
+  });
+
+  const { data: todayCost } = useQuery({
+    queryKey: ['costs', 'today'],
+    queryFn: costsApi.today,
+    refetchInterval: 30_000,
   });
 
   const agents = agentData?.agents || [];
@@ -256,6 +262,22 @@ export default function Dashboard() {
                   {stats.tasks.failed}
                 </span>
               </div>
+              {todayCost && todayCost.total_usd > 0 && (
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-mc-text-muted">Daily budget</span>
+                    <span className={todayCost.total_usd > 0.8 ? 'text-mc-accent-red' : 'text-mc-accent-amber'}>
+                      {((todayCost.total_usd / 1.0) * 100).toFixed(1)}% used
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-mc-bg-tertiary rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${todayCost.total_usd > 0.8 ? 'bg-mc-accent-red' : 'bg-mc-accent-amber'}`}
+                      style={{ width: `${Math.min(100, (todayCost.total_usd / 1.0) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-sm text-mc-text-muted">No cost data yet</p>

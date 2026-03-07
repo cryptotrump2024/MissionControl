@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { healthApi } from '@/api/client';
+import { healthApi, costsApi } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -12,6 +12,12 @@ export default function Settings() {
     queryKey: ['health'],
     queryFn: healthApi.check,
     refetchInterval: 30_000,
+  });
+
+  const { data: todayCost } = useQuery({
+    queryKey: ['costs', 'today'],
+    queryFn: costsApi.today,
+    refetchInterval: 60_000,
   });
 
   const copyToClipboard = (text: string) => {
@@ -83,6 +89,47 @@ export default function Settings() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Daily Budget */}
+      <div className="mc-card">
+        <h3 className="text-sm font-semibold text-mc-text-secondary mb-4">Daily Budget</h3>
+        {todayCost ? (
+          <div className="space-y-3">
+            <div className="flex justify-between text-xs">
+              <span className="text-mc-text-muted">Spent today</span>
+              <span className={`font-semibold ${todayCost.total_usd > 0.8 ? 'text-mc-accent-red' : 'text-mc-accent-amber'}`}>
+                ${todayCost.total_usd.toFixed(4)}
+              </span>
+            </div>
+            <div className="h-2 bg-mc-bg-tertiary rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${todayCost.total_usd > 0.8 ? 'bg-mc-accent-red' : 'bg-mc-accent-amber'}`}
+                style={{ width: `${Math.min(100, (todayCost.total_usd / 1.0) * 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-mc-text-muted">
+              <span>$0</span>
+              <span>$1.00 daily limit</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-2">
+              <div>
+                <p className="text-xs text-mc-text-muted">Input tokens</p>
+                <p className="text-sm font-semibold text-mc-text-primary">{todayCost.input_tokens.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-mc-text-muted">Output tokens</p>
+                <p className="text-sm font-semibold text-mc-text-primary">{todayCost.output_tokens.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-mc-text-muted">Remaining</p>
+                <p className="text-sm font-semibold text-mc-accent-green">${todayCost.budget_remaining_usd.toFixed(4)}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-mc-text-muted">No cost data today</p>
+        )}
       </div>
     </div>
   );
