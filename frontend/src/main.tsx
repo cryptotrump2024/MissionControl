@@ -13,6 +13,7 @@ import Logs from '@/pages/Logs';
 import Costs from '@/pages/Costs';
 import Approvals from '@/pages/Approvals';
 import AlertsPage from '@/pages/AlertsPage';
+import NotFound from '@/pages/NotFound';
 import '@/styles/globals.css';
 
 const queryClient = new QueryClient({
@@ -40,6 +41,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/costs" element={<Costs />} />
             <Route path="/approvals" element={<Approvals />} />
             <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </BrowserRouter>

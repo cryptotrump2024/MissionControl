@@ -167,6 +167,17 @@ export const alertsApi = {
     request<{ count: number }>('/api/alerts/unread-count'),
 };
 
+// ── Dashboard ────────────────────────────────────────────────────────
+
+export const dashboardApi = {
+  stats: () => request<{
+    agents: { total: number; active: number; working: number };
+    tasks: { total: number; running: number; completed: number; failed: number; queued: number; error_rate: number };
+    costs: { today_usd: number };
+    alerts: { unread: number };
+  }>('/api/dashboard/stats'),
+};
+
 // ── Health ──────────────────────────────────────────────────────────
 
 export const healthApi = {

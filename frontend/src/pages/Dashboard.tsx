@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { agentsApi, tasksApi, costsApi } from '@/api/client';
+import { agentsApi, tasksApi, dashboardApi } from '@/api/client';
 import { useWSStore } from '@/stores/websocket';
 import { STATUS_CONFIG, TIER_CONFIG } from '@/types';
 import type { Agent, Task, WSEvent } from '@/types';
@@ -82,6 +82,13 @@ function AgentStatusDot({ status }: { status: string }) {
 export default function Dashboard() {
   const { events, connected } = useWSStore();
 
+  const { data: stats } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: dashboardApi.stats,
+    refetchInterval: 10000,
+  });
+
+  // Agent list and task list are kept for the detail panels below
   const { data: agentData } = useQuery({
     queryKey: ['agents'],
     queryFn: () => agentsApi.list(),
@@ -92,18 +99,8 @@ export default function Dashboard() {
     queryFn: () => tasksApi.list(),
   });
 
-  const { data: costData } = useQuery({
-    queryKey: ['costs', 'today'],
-    queryFn: () => costsApi.summary('today'),
-  });
-
   const agents = agentData?.agents || [];
   const tasks = taskData?.tasks || [];
-  const activeAgents = agents.filter((a: Agent) => a.status !== 'offline').length;
-  const activeTasks = tasks.filter((t: Task) => t.status === 'running').length;
-  const errorRate = tasks.length > 0
-    ? ((tasks.filter((t: Task) => t.status === 'failed').length / tasks.length) * 100).toFixed(1)
-    : '0.0';
 
   return (
     <div>
@@ -111,10 +108,28 @@ export default function Dashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Agents" value={agents.length} subtext={`${activeAgents} active`} color="text-mc-accent-blue" />
-        <StatCard label="Active Tasks" value={activeTasks} subtext={`${tasks.length} total`} color="text-mc-accent-green" />
-        <StatCard label="Today's Cost" value={`$${(costData?.total_cost || 0).toFixed(4)}`} color="text-mc-accent-amber" />
-        <StatCard label="Error Rate" value={`${errorRate}%`} color={parseFloat(errorRate as string) > 5 ? 'text-mc-accent-red' : 'text-mc-accent-green'} />
+        <StatCard
+          label="Total Agents"
+          value={stats ? stats.agents.total : '—'}
+          subtext={stats ? `${stats.agents.active} active` : undefined}
+          color="text-mc-accent-blue"
+        />
+        <StatCard
+          label="Active Tasks"
+          value={stats ? stats.tasks.running : '—'}
+          subtext={stats ? `${stats.tasks.total} total` : undefined}
+          color="text-mc-accent-green"
+        />
+        <StatCard
+          label="Today's Cost"
+          value={stats ? `$${stats.costs.today_usd.toFixed(4)}` : '—'}
+          color="text-mc-accent-amber"
+        />
+        <StatCard
+          label="Error Rate"
+          value={stats ? `${stats.tasks.error_rate.toFixed(1)}%` : '—'}
+          color={stats && stats.tasks.error_rate > 5 ? 'text-mc-accent-red' : 'text-mc-accent-green'}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-6">
@@ -195,23 +210,27 @@ export default function Dashboard() {
         {/* Cost Overview */}
         <div className="mc-card">
           <h3 className="text-sm font-semibold text-mc-text-secondary mb-3">Cost Breakdown (Today)</h3>
-          {costData ? (
+          {stats ? (
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-mc-text-muted">Input Tokens</span>
-                <span className="text-mc-text-primary">{costData.total_input_tokens.toLocaleString()}</span>
+                <span className="text-mc-text-muted">Total Today</span>
+                <span className="text-mc-accent-amber">${stats.costs.today_usd.toFixed(4)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-mc-text-muted">Output Tokens</span>
-                <span className="text-mc-text-primary">{costData.total_output_tokens.toLocaleString()}</span>
+                <span className="text-mc-text-muted">Unread Alerts</span>
+                <span className={stats.alerts.unread > 0 ? 'text-mc-accent-red' : 'text-mc-text-primary'}>
+                  {stats.alerts.unread}
+                </span>
               </div>
-              <div className="border-t border-mc-border-primary pt-2 mt-2">
-                {Object.entries(costData.by_model).map(([model, cost]) => (
-                  <div key={model} className="flex justify-between text-xs py-0.5">
-                    <span className="text-mc-text-muted">{model}</span>
-                    <span className="text-mc-accent-amber">${(cost as number).toFixed(4)}</span>
-                  </div>
-                ))}
+              <div className="flex justify-between text-sm">
+                <span className="text-mc-text-muted">Tasks Completed</span>
+                <span className="text-mc-text-primary">{stats.tasks.completed}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-mc-text-muted">Tasks Failed</span>
+                <span className={stats.tasks.failed > 0 ? 'text-mc-accent-red' : 'text-mc-text-primary'}>
+                  {stats.tasks.failed}
+                </span>
               </div>
             </div>
           ) : (
