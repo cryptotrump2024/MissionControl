@@ -70,8 +70,10 @@ export const agentsApi = {
       success_rate: number;
       failure_rate: number;
       avg_duration_seconds: number;
+      avg_cost_usd: number;
       total_cost_usd: number;
       status_breakdown: Record<string, number>;
+      daily_volume: Array<{ date: string; count: number }>;
     }>(`/api/agents/${agentId}/metrics`),
 };
 

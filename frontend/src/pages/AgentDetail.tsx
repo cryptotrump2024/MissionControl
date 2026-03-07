@@ -42,7 +42,133 @@ const LEVEL_COLORS: Record<string, string> = {
 function LoadingSkeleton() {
   return (<div className="space-y-4 max-w-4xl animate-pulse"><div className="h-8 bg-mc-bg-tertiary rounded w-1/3" /><div className="h-24 bg-mc-bg-tertiary rounded" /><div className="h-32 bg-mc-bg-tertiary rounded" /><div className="h-48 bg-mc-bg-tertiary rounded" /></div>);
 }
-type ActiveTab = 'overview' | 'logs';
+type ActiveTab = 'overview' | 'logs' | 'metrics';
+
+function VolumeChart({ data }: { data: Array<{ date: string; count: number }> }) {
+  const max = Math.max(...data.map((d) => d.count), 1);
+  const barW = 28, gap = 8, H = 56;
+  const totalW = data.length * (barW + gap) - gap;
+  return (
+    <svg viewBox={`0 0 ${totalW} ${H}`} className="w-full h-14">
+      {data.map((d, i) => {
+        const barH = Math.max((d.count / max) * (H - 18), d.count > 0 ? 3 : 0);
+        const x = i * (barW + gap);
+        const y = H - barH - 14;
+        return (
+          <g key={d.date}>
+            <rect x={x} y={y} width={barW} height={barH} fill="#3b82f6" fillOpacity="0.75" rx="2" />
+            <text x={x + barW / 2} y={H - 1} textAnchor="middle" fontSize="7" fill="#555">{d.date.slice(5)}</text>
+            {d.count > 0 && (
+              <text x={x + barW / 2} y={y - 2} textAnchor="middle" fontSize="8" fill="#3b82f6">{d.count}</text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function StatusSegmentBar({ breakdown, total }: { breakdown: Record<string, number>; total: number }) {
+  if (total === 0) return <div className="h-3 bg-mc-bg-tertiary rounded" />;
+  const segments = [
+    { key: 'completed', color: '#16a34a', label: 'Done' },
+    { key: 'failed', color: '#ef4444', label: 'Failed' },
+    { key: 'running', color: '#3b82f6', label: 'Running' },
+    { key: 'queued', color: '#d97706', label: 'Queued' },
+    { key: 'cancelled', color: '#555', label: 'Cancelled' },
+  ];
+  return (
+    <div className="space-y-2">
+      <div className="h-3 rounded overflow-hidden flex">
+        {segments.map(({ key, color }) => {
+          const count = breakdown[key] || 0;
+          if (count === 0) return null;
+          return (
+            <div
+              key={key}
+              style={{ width: `${(count / total) * 100}%`, backgroundColor: color }}
+              title={`${key}: ${count}`}
+            />
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {segments.map(({ key, color, label }) => {
+          const count = breakdown[key] || 0;
+          if (count === 0) return null;
+          return (
+            <span key={key} className="flex items-center gap-1 text-[10px] text-mc-text-muted">
+              <span className="inline-block w-2 h-2 rounded-sm" style={{ backgroundColor: color }} />
+              {label}: {count}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AgentMetricsTab({ agentId }: { agentId: string }) {
+  const { data: m, isLoading, isError } = useQuery({
+    queryKey: ['agent-metrics', agentId],
+    queryFn: () => agentsApi.metrics(agentId),
+    refetchInterval: 30_000,
+  });
+
+  if (isLoading) return (
+    <div className="space-y-4">
+      {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-mc-bg-tertiary rounded animate-pulse" />)}
+    </div>
+  );
+  if (isError || !m) return <p className="text-xs text-mc-accent-red py-6 text-center">Failed to load metrics.</p>;
+
+  return (
+    <div className="space-y-4">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="mc-card">
+          <p className="text-xs text-mc-text-muted">Total Tasks</p>
+          <p className="text-2xl font-bold text-mc-accent-blue mt-1">{m.total_tasks}</p>
+        </div>
+        <div className="mc-card">
+          <p className="text-xs text-mc-text-muted">Success Rate</p>
+          <p className={`text-2xl font-bold mt-1 ${m.success_rate >= 80 ? 'text-mc-accent-green' : m.success_rate >= 50 ? 'text-mc-accent-amber' : 'text-mc-accent-red'}`}>
+            {m.success_rate}%
+          </p>
+        </div>
+        <div className="mc-card">
+          <p className="text-xs text-mc-text-muted">Avg Cost / Task</p>
+          <p className="text-2xl font-bold text-mc-accent-amber mt-1">${m.avg_cost_usd.toFixed(4)}</p>
+        </div>
+        <div className="mc-card">
+          <p className="text-xs text-mc-text-muted">Total Cost</p>
+          <p className="text-2xl font-bold text-mc-accent-amber mt-1">${m.total_cost_usd.toFixed(4)}</p>
+        </div>
+      </div>
+
+      {/* 7-day volume chart */}
+      <div className="mc-card">
+        <h3 className="text-sm font-semibold text-mc-text-secondary mb-3">7-Day Task Volume</h3>
+        {m.daily_volume.every((d) => d.count === 0) ? (
+          <p className="text-xs text-mc-text-muted text-center py-4">No task activity in the last 7 days.</p>
+        ) : (
+          <VolumeChart data={m.daily_volume} />
+        )}
+      </div>
+
+      {/* Status breakdown */}
+      <div className="mc-card">
+        <h3 className="text-sm font-semibold text-mc-text-secondary mb-3">Status Breakdown</h3>
+        <StatusSegmentBar breakdown={m.status_breakdown} total={m.total_tasks} />
+        <div className="mt-3 text-xs text-mc-text-muted">
+          Avg duration: <span className="text-mc-text-secondary font-medium">
+            {m.avg_duration_seconds > 0 ? formatDuration(m.avg_duration_seconds) : '--'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 function AgentLogsTab({ agentId }: { agentId: string }) {
   const { data: logs, isLoading, isError } = useQuery({ queryKey: ['agent-logs', agentId], queryFn: () => logsApi.list({ agent_id: agentId, limit: 50 }), refetchInterval: 15000 });
   if (isLoading) return (<div className="space-y-2">{[...Array(5)].map((_, i) => (<div key={i} className="h-8 bg-mc-bg-tertiary rounded animate-pulse" />))}</div>);
@@ -115,7 +241,7 @@ export default function AgentDetail() {
         <div className="mc-card"><p className="text-xs text-mc-text-muted">Last Heartbeat</p><p className="text-sm font-semibold text-mc-text-primary mt-1">{agent.last_heartbeat ? formatRelativeTime(agent.last_heartbeat) : 'Never'}</p></div>
       </div>
       <div className="flex gap-1 border-b border-mc-border-primary">
-        {(['overview', 'logs'] as ActiveTab[]).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${activeTab === tab ? 'border-mc-accent-blue text-mc-accent-blue' : 'border-transparent text-mc-text-muted hover:text-mc-text-secondary'}`}>{tab === 'overview' ? 'Overview' : 'Logs'}</button>))}
+        {(['overview', 'logs', 'metrics'] as ActiveTab[]).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${activeTab === tab ? 'border-mc-accent-blue text-mc-accent-blue' : 'border-transparent text-mc-text-muted hover:text-mc-text-secondary'}`}>{tab === 'overview' ? 'Overview' : tab === 'logs' ? 'Logs' : 'Metrics'}</button>))}
       </div>
       {activeTab === 'overview' && (<>
         {metrics && (<div className="mc-card"><h3 className="text-sm font-semibold text-mc-text-secondary mb-3">Performance Metrics</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-4"><div><p className="text-xs text-mc-text-muted">Success Rate</p><p className="text-2xl font-bold text-mc-accent-green mt-1">{metrics.success_rate}%</p></div><div><p className="text-xs text-mc-text-muted">Total / Done / Failed</p><p className="text-lg font-bold text-mc-text-primary mt-1">{metrics.total_tasks}<span className="text-sm font-normal text-mc-text-muted"> / </span><span className="text-mc-accent-green">{metrics.completed}</span><span className="text-sm font-normal text-mc-text-muted"> / </span><span className="text-mc-accent-red">{metrics.failed}</span></p></div><div><p className="text-xs text-mc-text-muted">Avg Duration</p><p className="text-2xl font-bold text-mc-accent-blue mt-1">{metrics.avg_duration_seconds > 0 ? formatDuration(metrics.avg_duration_seconds) : '--'}</p></div><div><p className="text-xs text-mc-text-muted">Total Cost</p><p className="text-2xl font-bold text-mc-accent-amber mt-1">${metrics.total_cost_usd.toFixed(4)}</p></div></div></div>)}
@@ -130,6 +256,7 @@ export default function AgentDetail() {
         </div>
       </>)}
       {activeTab === 'logs' && <AgentLogsTab agentId={agentId} />}
+      {activeTab === 'metrics' && <AgentMetricsTab agentId={agentId} />}
     </div>
   );
 }
