@@ -60,6 +60,35 @@ async def list_cost_records(
     return result.scalars().all()
 
 
+@router.get("/today")
+async def today_cost(db: AsyncSession = Depends(get_db)):
+    """Get today's total cost and breakdown."""
+    from datetime import date
+    from sqlalchemy import cast, Date
+
+    today = date.today()
+
+    result = await db.execute(
+        select(
+            func.sum(CostRecord.cost_usd).label('total'),
+            func.sum(CostRecord.input_tokens).label('input_tokens'),
+            func.sum(CostRecord.output_tokens).label('output_tokens'),
+            func.count(CostRecord.id).label('records'),
+        )
+        .where(cast(CostRecord.timestamp, Date) == today)
+    )
+    row = result.one()
+
+    return {
+        "date": str(today),
+        "total_usd": round(float(row.total or 0), 6),
+        "input_tokens": int(row.input_tokens or 0),
+        "output_tokens": int(row.output_tokens or 0),
+        "record_count": int(row.records or 0),
+        "budget_remaining_usd": max(0.0, round(1.0 - float(row.total or 0), 6)),
+    }
+
+
 @router.get("/summary", response_model=CostSummary)
 async def cost_summary(
     period: str = Query(default="today", pattern="^(today|week|month|all)$"),

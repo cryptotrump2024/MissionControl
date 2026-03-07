@@ -24,6 +24,7 @@ async def check_alerts(db: AsyncSession):
     await _check_daily_cost(db)
     await _check_error_rate(db)
     await _check_agent_offline(db)
+    await _check_cost_budget(db)
 
 
 async def _check_daily_cost(db: AsyncSession):
@@ -143,3 +144,42 @@ async def _check_agent_offline(db: AsyncSession):
 
     if offline_agents:
         await db.commit()
+
+
+async def _check_cost_budget(db: AsyncSession) -> None:
+    """Alert when daily cost gets high."""
+    from datetime import date
+    from sqlalchemy import cast, Date
+
+    today = date.today()
+
+    # Total daily cost
+    cost_result = await db.execute(
+        select(func.sum(CostRecord.cost_usd))
+        .where(cast(CostRecord.timestamp, Date) == today)
+    )
+    daily_total = cost_result.scalar() or 0.0
+
+    if daily_total > 1.0:  # $1/day hard limit alert
+        # Check if we already have an unacknowledged cost alert today
+        existing = await db.execute(
+            select(Alert)
+            .where(Alert.type == "daily_cost_limit")
+            .where(Alert.acknowledged == False)
+        )
+        if not existing.scalar_one_or_none():
+            alert = Alert(
+                type="daily_cost_limit",
+                severity="critical",
+                message=f"Daily cost ${daily_total:.4f} exceeds $1.00 limit",
+            )
+            db.add(alert)
+            await db.commit()
+
+            await ws_manager.broadcast("alert_triggered", {
+                "type": "daily_cost_limit",
+                "severity": "critical",
+                "daily_cost": daily_total,
+            })
+
+            logger.warning(f"Daily cost limit alert: ${daily_total:.4f} exceeds $1.00")
