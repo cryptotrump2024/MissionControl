@@ -39,11 +39,11 @@ export default function CommandPalette({ open, onClose }: Props) {
   const taskData = queryClient.getQueryData<{ tasks: { id: string; title: string; status: string }[] }>(['tasks', undefined, undefined, 0]);
 
   useEffect(() => {
-    if (open) {
-      setQuery('');
-      setSelected(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
+    if (!open) return;
+    setQuery('');
+    setSelected(0);
+    const id = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(id);
   }, [open]);
 
   const items: PaletteItem[] = useMemo(() => {

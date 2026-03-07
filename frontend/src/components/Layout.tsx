@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useWSStore } from '@/stores/websocket';
 import { useQuery } from '@tanstack/react-query';
@@ -41,13 +41,13 @@ export default function Layout() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
 
-  const shortcutCallbacks = useCallback(() => ({
+  const shortcutCallbacks = useMemo(() => ({
     onShowShortcuts: () => setShowShortcuts((v) => !v),
     onEscape: () => { setShowShortcuts(false); setShowPalette(false); },
     onCommandPalette: () => setShowPalette((v) => !v),
   }), []);
 
-  useKeyboardShortcuts(shortcutCallbacks());
+  useKeyboardShortcuts(shortcutCallbacks);
 
   return (
     <div className="flex h-screen overflow-hidden">
