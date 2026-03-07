@@ -13,36 +13,8 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { alertsApi } from '@/api/client';
 import type { Alert } from '@/types';
-
-// ── Inline API (will be merged into @/api/client when alertsApi is added) ──
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`;
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `HTTP ${response.status}`);
-  }
-  return response.json();
-}
-
-const alertsApi = {
-  list: (params?: { severity?: string; acknowledged?: boolean }) => {
-    const searchParams = new URLSearchParams();
-    if (params?.severity) searchParams.set('severity', params.severity);
-    if (params?.acknowledged !== undefined) searchParams.set('acknowledged', String(params.acknowledged));
-    const qs = searchParams.toString();
-    return request<Alert[]>(`/api/alerts${qs ? `?${qs}` : ''}`);
-  },
-  acknowledge: (id: string) =>
-    request<Alert>(`/api/alerts/${id}/acknowledge`, { method: 'PATCH' }),
-};
 
 // ── Constants ───────────────────────────────────────────────────────────────
 

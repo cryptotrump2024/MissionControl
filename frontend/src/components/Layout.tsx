@@ -2,16 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useWSStore } from '@/stores/websocket';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-async function layoutRequest<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return response.json();
-}
+import { alertsApi } from '@/api/client';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '◉' },
@@ -32,7 +23,7 @@ export default function Layout() {
 
   const { data: unreadData } = useQuery({
     queryKey: ['alerts-unread-count'],
-    queryFn: () => layoutRequest<{ count: number }>('/api/alerts/unread-count'),
+    queryFn: () => alertsApi.unreadCount(),
     refetchInterval: 30_000,
     // Gracefully handle if endpoint not yet available
     retry: false,
