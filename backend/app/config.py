@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     jwt_expiry_minutes: int = 1440  # 24 hours
 
     # CORS
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,https://frontend-production-0343.up.railway.app,*"
 
     # Logging
     log_level: str = "INFO"

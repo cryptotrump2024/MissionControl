@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.agent import Agent
 from app.models.cost_record import CostRecord
 from app.models.task import Task
 from app.models.alert import Alert
@@ -22,6 +23,7 @@ async def check_alerts(db: AsyncSession):
     """Run all alert checks."""
     await _check_daily_cost(db)
     await _check_error_rate(db)
+    await _check_agent_offline(db)
 
 
 async def _check_daily_cost(db: AsyncSession):
@@ -97,3 +99,47 @@ async def _check_error_rate(db: AsyncSession):
             "error_rate": error_rate,
             "threshold": ERROR_RATE_THRESHOLD,
         })
+
+
+async def _check_agent_offline(db: AsyncSession):
+    """Alert if any agent hasn't sent a heartbeat in 5+ minutes."""
+    threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+    query = select(Agent).where(
+        Agent.last_heartbeat < threshold,
+        Agent.status != "offline",
+    )
+    result = await db.execute(query)
+    offline_agents = result.scalars().all()
+
+    for agent in offline_agents:
+        # Mark as offline
+        agent.status = "offline"
+
+        # Check if we already alerted for this agent recently
+        recent_alert = await db.execute(
+            select(Alert).where(
+                Alert.type == "agent_offline",
+                Alert.agent_id == agent.id,
+                Alert.created_at >= datetime.now(timezone.utc) - timedelta(hours=1),
+            )
+        )
+        if not recent_alert.scalar_one_or_none():
+            alert = Alert(
+                type="agent_offline",
+                severity="warning",
+                message=(
+                    f"Agent '{agent.name}' ({agent.type}) has not sent a heartbeat"
+                    f" since {agent.last_heartbeat.strftime('%H:%M:%S')} UTC"
+                ),
+                agent_id=agent.id,
+            )
+            db.add(alert)
+            await ws_manager.broadcast("alert_triggered", {
+                "type": "agent_offline",
+                "agent_name": agent.name,
+                "severity": "warning",
+            })
+
+    if offline_agents:
+        await db.commit()

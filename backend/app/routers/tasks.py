@@ -131,6 +131,27 @@ async def get_task(task_id: UUID, db: AsyncSession = Depends(get_db)):
     return task
 
 
+@router.get("/{task_id}/logs")
+async def get_task_logs(
+    task_id: UUID,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=200, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all log entries for a specific task."""
+    from app.models.log_entry import LogEntry
+    from app.schemas.log_entry import LogEntryResponse
+    query = (
+        select(LogEntry)
+        .where(LogEntry.task_id == task_id)
+        .order_by(LogEntry.timestamp.asc())  # Oldest first for log viewer
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
 @router.patch("/{task_id}", response_model=TaskResponse)
 async def update_task(
     task_id: UUID,
