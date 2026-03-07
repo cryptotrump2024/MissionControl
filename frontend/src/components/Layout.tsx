@@ -135,11 +135,12 @@ export default function Layout() {
       {/* Main Content */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Mobile top bar */}
-        <header className="h-12 flex items-center gap-3 px-4 border-b border-mc-border bg-mc-bg-secondary md:hidden">
+        <header className="h-12 flex items-center gap-3 px-4 border-b border-mc-border-primary bg-mc-bg-secondary md:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="text-mc-text-secondary hover:text-mc-text-primary p-1"
-            aria-label="Open menu"
+            aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={sidebarOpen}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
               <rect y="3" width="20" height="2" rx="1"/>

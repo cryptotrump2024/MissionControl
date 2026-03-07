@@ -195,10 +195,14 @@ export default function Logs() {
           {/* Live toggle */}
           <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
             <span
+              role="switch"
+              aria-checked={liveEnabled}
+              tabIndex={0}
               className={`relative inline-flex w-8 h-4 rounded-full transition-colors ${
                 liveEnabled ? 'bg-mc-accent-green' : 'bg-mc-bg-tertiary border border-mc-border-primary'
               }`}
               onClick={() => setLiveEnabled((v) => !v)}
+              onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setLiveEnabled((v) => !v); } }}
             >
               <span
                 className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${
