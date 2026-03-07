@@ -211,3 +211,9 @@ export const healthApi = {
   check: () =>
     request<{ status: string; database: string; version: string }>('/api/health'),
 };
+
+// ── Dev Tools ────────────────────────────────────────────────────────
+
+export const devApi = {
+  seed: () => request<{ created: { agents: number; tasks: number; logs: number } }>('/api/seed', { method: 'POST' }),
+};

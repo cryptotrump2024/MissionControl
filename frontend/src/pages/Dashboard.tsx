@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { agentsApi, tasksApi, dashboardApi } from '@/api/client';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { agentsApi, tasksApi, dashboardApi, devApi } from '@/api/client';
 import { useWSStore } from '@/stores/websocket';
 import { STATUS_CONFIG, TIER_CONFIG } from '@/types';
 import type { Agent, Task, WSEvent } from '@/types';
@@ -81,6 +82,16 @@ function AgentStatusDot({ status }: { status: string }) {
 
 export default function Dashboard() {
   const { events, connected } = useWSStore();
+  const queryClient = useQueryClient();
+  const [seedMsg, setSeedMsg] = useState<string | null>(null);
+  const seedMutation = useMutation({
+    mutationFn: devApi.seed,
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      setSeedMsg('Seeded!');
+      setTimeout(() => setSeedMsg(null), 2000);
+    },
+  });
 
   const { data: stats } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -104,7 +115,20 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">Command Center</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold">Command Center</h2>
+        <div className="flex items-center gap-2">
+          {seedMsg && <span className="text-xs text-mc-accent-green">{seedMsg}</span>}
+          <button
+            className="mc-btn bg-mc-bg-tertiary text-mc-text-muted text-xs py-1 px-3 hover:text-mc-text-primary"
+            onClick={() => seedMutation.mutate()}
+            disabled={seedMutation.isPending}
+            title="Create demo agents, tasks, and logs"
+          >
+            {seedMutation.isPending ? "Seeding..." : "Seed Demo Data"}
+          </button>
+        </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
