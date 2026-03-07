@@ -109,6 +109,9 @@ export interface Alert {
   created_at: string;
 }
 
+/** Alias matching the backend AlertResponse schema (same shape as Alert). */
+export type AlertResponse = Alert;
+
 // ── WebSocket Events ────────────────────────────────────────────────
 
 export interface WSEvent {

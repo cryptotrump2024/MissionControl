@@ -7,12 +7,13 @@
  *  - Time range selector
  *  - Cost by agent bar chart (Recharts)
  *  - Cost over time line chart (Recharts)
+ *  - Cost records table (GET /api/costs list endpoint)
  *
- * NOTE: The backend does not currently expose a raw cost-record list endpoint.
- * The detailed cost records table has been omitted until GET /api/costs (list)
- * is added to the backend. Summary and daily data come from:
+ * Summary and daily data come from:
  *   GET /api/costs/summary?period=...
  *   GET /api/costs/daily?days=...
+ * Raw records come from:
+ *   GET /api/costs?limit=100
  */
 
 import { useState } from 'react';
@@ -31,6 +32,18 @@ import {
 import { costsApi, tasksApi } from '@/api/client';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d ago`;
+}
 
 const PERIOD_LABELS: Record<string, string> = {
   today: 'Today',
@@ -115,6 +128,11 @@ export default function Costs() {
   const { data: taskData } = useQuery({
     queryKey: ['tasks'],
     queryFn: () => tasksApi.list(),
+  });
+
+  const { data: records, isLoading: recordsLoading } = useQuery({
+    queryKey: ['costs', 'records'],
+    queryFn: () => costsApi.records({ limit: 100 }),
   });
 
   // Derived stats
@@ -345,6 +363,78 @@ export default function Costs() {
           </div>
         </div>
       )}
+
+      {/* ── Cost Records Table ── */}
+      <div className="mc-card mt-6">
+        <h3 className="text-sm font-semibold text-mc-text-secondary mb-4">Cost Records</h3>
+        {recordsLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-10 bg-mc-bg-tertiary rounded animate-pulse" />
+            ))}
+          </div>
+        ) : !records || records.length === 0 ? (
+          <div className="h-24 flex items-center justify-center">
+            <p className="text-xs text-mc-text-muted">No cost records found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-mc-border-primary text-mc-text-muted">
+                  <th className="text-left py-2 pr-4 font-medium">Timestamp</th>
+                  <th className="text-left py-2 pr-4 font-medium">Agent ID</th>
+                  <th className="text-left py-2 pr-4 font-medium">Model</th>
+                  <th className="text-right py-2 pr-4 font-medium">Input Tokens</th>
+                  <th className="text-right py-2 pr-4 font-medium">Output Tokens</th>
+                  <th className="text-right py-2 font-medium">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((rec) => (
+                  <tr
+                    key={rec.id}
+                    className="border-b border-mc-border-primary/40 hover:bg-mc-bg-hover transition-colors"
+                  >
+                    <td className="py-2 pr-4 text-mc-text-secondary whitespace-nowrap">
+                      <span
+                        title={new Date(rec.timestamp).toLocaleString()}
+                        className="cursor-default"
+                      >
+                        {formatRelativeTime(rec.timestamp)}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-4">
+                      {rec.agent_id ? (
+                        <span
+                          className="font-mono text-mc-accent-blue truncate max-w-[120px] inline-block align-bottom"
+                          title={rec.agent_id}
+                        >
+                          {rec.agent_id.slice(0, 8)}…
+                        </span>
+                      ) : (
+                        <span className="text-mc-text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4 text-mc-text-secondary max-w-[160px] truncate" title={rec.model}>
+                      {rec.model}
+                    </td>
+                    <td className="py-2 pr-4 text-right text-mc-text-secondary tabular-nums">
+                      {rec.input_tokens.toLocaleString()}
+                    </td>
+                    <td className="py-2 pr-4 text-right text-mc-text-secondary tabular-nums">
+                      {rec.output_tokens.toLocaleString()}
+                    </td>
+                    <td className="py-2 text-right text-mc-accent-amber font-semibold tabular-nums">
+                      ${rec.cost_usd.toFixed(6)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

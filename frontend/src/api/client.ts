@@ -25,7 +25,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ── Agents ──────────────────────────────────────────────────────────
 
-import type { Agent, AgentListResponse, Task, TaskListResponse, LogEntry, CostSummary, CostRecord } from '@/types';
+import type { Agent, AgentListResponse, Task, TaskListResponse, LogEntry, CostSummary, CostRecord, AlertResponse } from '@/types';
 
 export const agentsApi = {
   list: (params?: { status?: string; tier?: number }) => {
@@ -148,6 +148,23 @@ export const approvalsApi = {
 
   reject: (taskId: string, reason?: string) =>
     request<Task>(`/api/approvals/${taskId}/reject?reason=${encodeURIComponent(reason || '')}`, { method: 'POST' }),
+};
+
+// ── Alerts ──────────────────────────────────────────────────────────
+
+export const alertsApi = {
+  list: (params?: { severity?: string; acknowledged?: boolean; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.severity) searchParams.set('severity', params.severity);
+    if (params?.acknowledged !== undefined) searchParams.set('acknowledged', String(params.acknowledged));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const qs = searchParams.toString();
+    return request<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`);
+  },
+  acknowledge: (id: string) =>
+    request<AlertResponse>(`/api/alerts/${id}/acknowledge`, { method: 'PATCH' }),
+  unreadCount: () =>
+    request<{ count: number }>('/api/alerts/unread-count'),
 };
 
 // ── Health ──────────────────────────────────────────────────────────
