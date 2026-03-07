@@ -15,18 +15,16 @@ ENV VITE_WS_URL=$VITE_WS_URL
 
 RUN npm run build
 
-# Production stage: use http-server which has simpler port handling
+# Production stage: serve static files with serve@13 (stable -p PORT API)
 FROM node:20-alpine
 
 WORKDIR /app
 
-# http-server is stable and uses -p PORT consistently
-RUN npm install -g http-server
+# Pin to serve@13 which uses -p PORT (not the -l endpoint scheme of v14+)
+RUN npm install -g serve@13
 
-# Copy built assets
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 8080
 
-# http-server: -p port, -d disable directory listing, --spa for client-side routing
-CMD ["sh", "-c", "http-server dist -p ${PORT:-8080} --spa -d false"]
+CMD ["sh", "-c", "serve -s dist -p ${PORT:-8080}"]
