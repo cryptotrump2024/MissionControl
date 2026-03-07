@@ -89,6 +89,7 @@ async def list_tasks(
     status: str | None = None,
     agent_id: UUID | None = None,
     priority: int | None = None,
+    parent_task_id: UUID | None = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
@@ -106,6 +107,9 @@ async def list_tasks(
     if priority:
         query = query.where(Task.priority == priority)
         count_query = count_query.where(Task.priority == priority)
+    if parent_task_id:
+        query = query.where(Task.parent_task_id == parent_task_id)
+        count_query = count_query.where(Task.parent_task_id == parent_task_id)
 
     query = query.offset(skip).limit(limit).order_by(Task.created_at.desc())
     result = await db.execute(query)

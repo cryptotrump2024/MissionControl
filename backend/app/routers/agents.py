@@ -7,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.agent import Agent
+from app.models.task import Task
 from app.schemas.agent import AgentCreate, AgentUpdate, AgentResponse, AgentListResponse
+from app.schemas.task import TaskListResponse
 from app.services.ws_manager import ws_manager
 
 router = APIRouter()
@@ -74,6 +76,32 @@ async def list_agents(
     total = total_result.scalar()
 
     return AgentListResponse(agents=agents, total=total)
+
+
+@router.get("/{agent_id}/tasks", response_model=TaskListResponse)
+async def get_agent_tasks(
+    agent_id: UUID,
+    status: str | None = None,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get tasks assigned to or delegated to a specific agent."""
+    query = select(Task).where(
+        (Task.agent_id == agent_id) | (Task.delegated_to == str(agent_id))
+    )
+    count_query = select(func.count(Task.id)).where(
+        (Task.agent_id == agent_id) | (Task.delegated_to == str(agent_id))
+    )
+    if status:
+        query = query.where(Task.status == status)
+        count_query = count_query.where(Task.status == status)
+    query = query.offset(skip).limit(limit).order_by(Task.created_at.desc())
+    result = await db.execute(query)
+    tasks = result.scalars().all()
+    total_result = await db.execute(count_query)
+    total = total_result.scalar()
+    return TaskListResponse(tasks=tasks, total=total)
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)

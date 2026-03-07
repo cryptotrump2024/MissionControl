@@ -41,6 +41,25 @@ async def create_cost_record(
     return record
 
 
+@router.get("", response_model=list[CostRecordResponse])
+async def list_cost_records(
+    agent_id: UUID | None = None,
+    task_id: UUID | None = None,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+):
+    """List individual cost records."""
+    query = select(CostRecord).order_by(CostRecord.timestamp.desc())
+    if agent_id:
+        query = query.where(CostRecord.agent_id == agent_id)
+    if task_id:
+        query = query.where(CostRecord.task_id == task_id)
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
 @router.get("/summary", response_model=CostSummary)
 async def cost_summary(
     period: str = Query(default="today", pattern="^(today|week|month|all)$"),
