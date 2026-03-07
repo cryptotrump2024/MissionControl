@@ -148,6 +148,7 @@ export default function Tasks() {
         </div>
       ) : (
         <>
+          <div className="overflow-x-auto">
           <div className="space-y-2">
             {pagedTasks.map((task: Task) => (
               <div
@@ -173,6 +174,7 @@ export default function Tasks() {
                 </div>
               </div>
             ))}
+          </div>
           </div>
 
           {/* Pagination controls */}
