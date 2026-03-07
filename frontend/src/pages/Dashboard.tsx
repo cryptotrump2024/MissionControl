@@ -172,7 +172,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <StatCard
           label="Total Agents"
           value={stats ? stats.agents.total : '—'}
@@ -197,7 +197,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Agent Status Grid */}
         <div className="mc-card">
           <h3 className="text-sm font-semibold text-mc-text-secondary mb-3">Agent Status</h3>
