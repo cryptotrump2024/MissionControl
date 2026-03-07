@@ -1,7 +1,9 @@
 // frontend/src/pages/Templates.tsx
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { templatesApi, type TaskTemplate } from '@/api/client';
+import { useToastStore } from '@/components/Toast';
 
 export default function Templates() {
   const navigate = useNavigate();
@@ -17,9 +19,19 @@ export default function Templates() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
   });
 
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const { addToast } = useToastStore();
+
   const applyMutation = useMutation({
-    mutationFn: templatesApi.apply,
-    onSuccess: (task) => navigate(`/tasks/${task.id}`),
+    mutationFn: (id: string) => templatesApi.apply(id),
+    onSuccess: (task) => {
+      setPendingId(null);
+      navigate(`/tasks/${task.id}`);
+    },
+    onError: (err: Error) => {
+      setPendingId(null);
+      addToast(`Failed to apply template: ${err.message}`, 'error');
+    },
   });
 
   if (isLoading) {
@@ -78,10 +90,13 @@ export default function Templates() {
               </div>
               <button
                 className="mc-btn w-full text-xs mt-1"
-                disabled={applyMutation.isPending}
-                onClick={() => applyMutation.mutate(t.id)}
+                disabled={pendingId === t.id}
+                onClick={() => {
+                  setPendingId(t.id);
+                  applyMutation.mutate(t.id);
+                }}
               >
-                {applyMutation.isPending ? 'Creating\u2026' : '\u25b6 Use Template'}
+                {pendingId === t.id ? 'Creating\u2026' : '\u25b6 Use Template'}
               </button>
             </div>
           ))}

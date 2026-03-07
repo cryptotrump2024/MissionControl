@@ -7,8 +7,8 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { tasksApi, agentsApi, templatesApi } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { tasksApi, agentsApi, templatesApi, type TaskTemplate } from '@/api/client';
 
 const PRIORITY_OPTIONS = [
   { value: 1, label: '1 — Critical' },
@@ -35,6 +35,7 @@ export default function TaskCreate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get("template");
+  const qc = useQueryClient();
 
   const [form, setForm] = useState<FormState>({
     title: '',
@@ -53,7 +54,12 @@ export default function TaskCreate() {
 
   const { data: templateData } = useQuery({
     queryKey: ["template-prefill", templateId],
-    queryFn: () => templatesApi.list().then(ts => ts.find(t => t.id === templateId) ?? null),
+    queryFn: () => {
+      const cached = qc.getQueryData<TaskTemplate[]>(["templates"]);
+      const fromCache = cached?.find(t => t.id === templateId);
+      if (fromCache) return Promise.resolve(fromCache);
+      return templatesApi.list().then(ts => ts.find(t => t.id === templateId) ?? null);
+    },
     enabled: !!templateId,
   });
 
@@ -83,7 +89,8 @@ export default function TaskCreate() {
           await templatesApi.create({
             name: form.title.trim(),
             description: form.description.trim() || null,
-            agent_id: form.delegated_to || null,
+            // form.delegated_to holds agent type string (e.g. "ceo"), look up UUID
+            agent_id: agents.find(a => a.id === form.delegated_to || a.type === form.delegated_to)?.id ?? null,
             priority: form.priority,
             payload: null,
           });

@@ -309,7 +309,9 @@ export const templatesApi = {
     }),
 
   delete: (id: string): Promise<void> =>
-    fetch(`${API_BASE}/api/templates/${id}`, { method: 'DELETE' }).then(() => undefined),
+    fetch(`${API_BASE}/api/templates/${id}`, { method: 'DELETE' }).then(r => {
+      if (!r.ok) return r.json().catch(() => ({})).then((e: { detail?: string }) => Promise.reject(new Error(e.detail ?? `HTTP ${r.status}`)));
+    }),
 
   apply: (id: string): Promise<{ id: string; title: string; status: string }> =>
     fetch(`${API_BASE}/api/templates/${id}/apply`, { method: 'POST' }).then(r => {
