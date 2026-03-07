@@ -7,10 +7,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.cost_record import CostRecord
+from app.models.setting import AppSetting
 from app.schemas.cost_record import CostRecordCreate, CostRecordResponse, CostSummary
 from app.services.ws_manager import ws_manager
 
 router = APIRouter()
+
+
+async def _get_daily_budget(db: AsyncSession) -> float:
+    """Read daily_budget_usd from app_settings, fallback to 1.0."""
+    result = await db.execute(
+        select(AppSetting).where(AppSetting.key == "daily_budget_usd")
+    )
+    row = result.scalar_one_or_none()
+    try:
+        return float(row.value) if row else 1.0
+    except (ValueError, TypeError):
+        return 1.0
 
 
 @router.post("", response_model=CostRecordResponse, status_code=201)
@@ -79,13 +92,15 @@ async def today_cost(db: AsyncSession = Depends(get_db)):
     )
     row = result.one()
 
+    budget = await _get_daily_budget(db)
     return {
         "date": str(today),
         "total_usd": round(float(row.total or 0), 6),
         "input_tokens": int(row.input_tokens or 0),
         "output_tokens": int(row.output_tokens or 0),
         "record_count": int(row.records or 0),
-        "budget_remaining_usd": max(0.0, round(1.0 - float(row.total or 0), 6)),
+        "budget_usd": budget,
+        "budget_remaining_usd": max(0.0, round(budget - float(row.total or 0), 6)),
     }
 
 
