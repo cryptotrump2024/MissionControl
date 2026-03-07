@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { logsApi, agentsApi } from '@/api/client';
+import { logsApi, agentsApi, exportApi } from '@/api/client';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import type { LogEntry } from '@/types';
 
@@ -177,6 +177,18 @@ export default function Logs() {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
+
+          {/* CSV Export */}
+          <a
+            href={exportApi.logsUrl({
+              level: filterLevel || undefined,
+              agent_id: filterAgentId || undefined,
+            })}
+            download="logs.csv"
+            className="mc-btn-secondary text-xs flex items-center gap-1 no-underline"
+          >
+            &#8595; CSV
+          </a>
 
           <div className="flex-1" />
 

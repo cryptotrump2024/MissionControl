@@ -171,6 +171,34 @@ export const costsApi = {
     const qs = searchParams.toString();
     return request<CostRecord[]>(`/api/costs${qs ? `?${qs}` : ''}`);
   },
+
+  byAgent: () => request<Array<{
+    agent_id: string;
+    agent_name: string;
+    total_usd: number;
+    record_count: number;
+    input_tokens: number;
+    output_tokens: number;
+    pct_of_total: number;
+  }>>('/api/costs/by-agent'),
+};
+
+export const exportApi = {
+  tasksUrl: (params?: { status?: string; agent_id?: string }): string => {
+    const sp = new URLSearchParams();
+    if (params?.status) sp.set('status', params.status);
+    if (params?.agent_id) sp.set('agent_id', params.agent_id);
+    const qs = sp.toString();
+    return `${API_BASE}/api/export/tasks.csv${qs ? `?${qs}` : ''}`;
+  },
+  logsUrl: (params?: { level?: string; agent_id?: string; task_id?: string }): string => {
+    const sp = new URLSearchParams();
+    if (params?.level) sp.set('level', params.level);
+    if (params?.agent_id) sp.set('agent_id', params.agent_id);
+    if (params?.task_id) sp.set('task_id', params.task_id);
+    const qs = sp.toString();
+    return `${API_BASE}/api/export/logs.csv${qs ? `?${qs}` : ''}`;
+  },
 };
 
 // ── Approvals ───────────────────────────────────────────────────────
@@ -225,4 +253,7 @@ export const healthApi = {
 
 export const devApi = {
   seed: () => request<{ created: { agents: number; tasks: number; logs: number } }>('/api/seed', { method: 'POST' }),
+  demoStart:  () => request<{ status: string }>('/api/demo/start',  { method: 'POST' }),
+  demoStop:   () => request<{ status: string }>('/api/demo/stop',   { method: 'POST' }),
+  demoStatus: () => request<{ running: boolean; tick: number }>('/api/demo/status'),
 };

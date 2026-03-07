@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { tasksApi, agentsApi } from '@/api/client';
+import { tasksApi, agentsApi, exportApi } from '@/api/client';
 import type { Task } from '@/types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -110,6 +110,13 @@ export default function Tasks() {
               </option>
             ))}
           </select>
+          <a
+              href={exportApi.tasksUrl({ status: filterStatus, agent_id: filterAgent })}
+              download="tasks.csv"
+              className="mc-btn-secondary text-xs flex items-center gap-1 no-underline"
+            >
+              &#8595; CSV
+            </a>
           <button className="mc-btn-primary text-xs" onClick={() => navigate('/tasks/create')}>
             + New Task
           </button>

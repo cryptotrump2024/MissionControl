@@ -1,9 +1,12 @@
+import { useState, useMemo, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useWSStore } from '@/stores/websocket';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { alertsApi } from '@/api/client';
 import { ToastContainer, useWSToasts } from '@/components/Toast';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import ShortcutsOverlay from '@/components/ShortcutsOverlay';
+import CommandPalette from '@/components/CommandPalette';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '◉' },
@@ -34,6 +37,17 @@ export default function Layout() {
     retry: false,
   });
   const unreadCount = unreadData?.count ?? 0;
+
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
+
+  const shortcutCallbacks = useMemo(() => ({
+    onShowShortcuts: () => setShowShortcuts((v) => !v),
+    onEscape: () => { setShowShortcuts(false); setShowPalette(false); },
+    onCommandPalette: () => setShowPalette((v) => !v),
+  }), []);
+
+  useKeyboardShortcuts(shortcutCallbacks);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -96,6 +110,13 @@ export default function Layout() {
         <header className="h-14 bg-mc-bg-secondary border-b border-mc-border-primary flex items-center px-6">
           <div className="flex-1" />
           <div className="flex items-center gap-4">
+            <button
+              className="hidden md:flex items-center gap-1.5 text-xs text-mc-text-muted bg-mc-bg-secondary border border-mc-border-primary rounded px-2 py-1 hover:border-mc-accent-blue transition-colors cursor-pointer"
+              onClick={() => setShowPalette(true)}
+              title="Command Palette (⌘K)"
+            >
+              <span className="font-mono">⌘K</span>
+            </button>
             <span className="text-xs text-mc-text-muted">v0.1.0</span>
           </div>
         </header>
@@ -108,6 +129,8 @@ export default function Layout() {
 
       {/* Toast notifications — rendered at root so they overlay everything */}
       <ToastContainer />
+      <ShortcutsOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <CommandPalette open={showPalette} onClose={() => setShowPalette(false)} />
     </div>
   );
 }

@@ -171,6 +171,56 @@ function CostSparkline({ data }: { data: Array<{ date: string; cost: number }> }
   );
 }
 
+// ── Cost By Agent Chart ─────────────────────────────────────────────────────────
+
+function CostByAgentChart() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['costs-by-agent'],
+    queryFn: costsApi.byAgent,
+    refetchInterval: 30_000,
+  });
+
+  if (isLoading) {
+    return <div className="h-24 bg-mc-bg-tertiary rounded animate-pulse" />;
+  }
+  if (!data || data.length === 0) {
+    return (
+      <p className="text-mc-text-muted text-xs text-center py-4">
+        No per-agent cost data yet. Run demo mode to generate data.
+      </p>
+    );
+  }
+
+  const maxUsd = Math.max(...data.map((d) => d.total_usd));
+
+  return (
+    <div className="space-y-3">
+      {data.map((row) => {
+        const pct = maxUsd > 0 ? (row.total_usd / maxUsd) * 100 : 0;
+        return (
+          <div key={row.agent_id} className="flex items-center gap-3">
+            <span className="text-xs text-mc-text-muted w-32 truncate flex-shrink-0 text-right">
+              {row.agent_name}
+            </span>
+            <div className="flex-1 h-5 bg-mc-bg-tertiary rounded overflow-hidden">
+              <div
+                className="h-full bg-mc-accent-amber/70 rounded transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="text-xs text-mc-accent-amber w-16 text-right flex-shrink-0 font-mono">
+              ${row.total_usd.toFixed(4)}
+            </span>
+            <span className="text-[10px] text-mc-text-muted w-8 flex-shrink-0">
+              {row.pct_of_total}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────
 
 export default function Costs() {
@@ -281,6 +331,12 @@ export default function Costs() {
           <CostSparkline data={daily.slice(-7)} />
         </div>
       )}
+
+      {/* Cost by Agent */}
+      <div className="mc-card mb-6">
+        <h3 className="text-sm font-semibold text-mc-text-secondary mb-4">Cost by Agent</h3>
+        <CostByAgentChart />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* ── Cost by Agent — Bar Chart ── */}
