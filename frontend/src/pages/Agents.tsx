@@ -28,7 +28,7 @@ function AgentCard({ agent }: { agent: Agent }) {
 
   function handleExpandToggle(e: React.MouseEvent) {
     e.stopPropagation();
-    setExpanded(\!expanded);
+    setExpanded(!expanded);
   }
 
   function handlePause(e: React.MouseEvent) {
@@ -70,7 +70,7 @@ function AgentCard({ agent }: { agent: Agent }) {
         </div>
         <div className="text-right flex flex-col items-end gap-1">
           <p className="text-xs text-mc-text-muted">{agent.total_tasks} tasks</p>
-          <p className="text-xs text-mc-accent-amber">${agent.total_cost.toFixed(4)}</p>
+          <p className="text-xs text-mc-accent-amber hidden sm:block">${agent.total_cost.toFixed(4)}</p>
           <div className="flex items-center gap-1 mt-1">
             {canPause && (
               <button
@@ -255,10 +255,12 @@ export default function Agents() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {agents.map((agent: Agent) => (
-            <AgentCard key={agent.id} agent={agent} />
-          ))}
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {agents.map((agent: Agent) => (
+              <AgentCard key={agent.id} agent={agent} />
+            ))}
+          </div>
         </div>
       )}
     </div>

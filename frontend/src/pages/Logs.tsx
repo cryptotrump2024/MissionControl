@@ -221,7 +221,7 @@ export default function Logs() {
       </div>
 
       {/* ── Log Stream ── */}
-      <div className="mc-card">
+      <div className="overflow-x-auto"><div className="mc-card">
         <div className="font-mono text-xs max-h-[65vh] overflow-y-auto">
           {isLoading ? (
             <p className="text-mc-text-muted py-8 text-center">Loading logs...</p>
@@ -250,7 +250,7 @@ export default function Logs() {
 
                 {/* Agent */}
                 {log.agent_id ? (
-                  <span className="text-mc-text-muted flex-shrink-0 w-20 truncate" title={log.agent_id}>
+                  <span className="text-mc-text-muted flex-shrink-0 w-20 truncate hidden sm:block" title={log.agent_id}>
                     {log.agent_id.slice(0, 8)}…
                   </span>
                 ) : (
@@ -261,7 +261,7 @@ export default function Logs() {
                 {log.task_id ? (
                   <Link
                     to={`/tasks/${log.task_id}`}
-                    className="text-mc-accent-teal hover:text-mc-accent-teal/80 flex-shrink-0 w-20 truncate font-mono"
+                    className="text-mc-accent-teal hover:text-mc-accent-teal/80 flex-shrink-0 w-20 truncate font-mono hidden sm:block"
                     title={log.task_id}
                   >
                     {log.task_id.slice(0, 8)}…
@@ -282,10 +282,11 @@ export default function Logs() {
         <div className="flex items-center gap-2 text-[9px] text-mc-text-muted uppercase tracking-wider border-t border-mc-border-primary pt-2 mt-2 px-2 font-mono">
           <span className="w-16">Age</span>
           <span className="w-14">Level</span>
-          <span className="w-20">Agent</span>
-          <span className="w-20">Task</span>
+          <span className="w-20 hidden sm:block">Agent</span>
+          <span className="w-20 hidden sm:block">Task</span>
           <span className="flex-1">Message</span>
         </div>
+      </div>
       </div>
 
       {/* Live indicator */}
