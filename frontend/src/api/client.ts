@@ -104,6 +104,7 @@ export const tasksApi = {
     priority?: number;
     input_data?: Record<string, unknown>;
     delegated_to?: string;
+    scheduled_at?: string;
   }) =>
     request<Task>('/api/tasks', {
       method: 'POST',

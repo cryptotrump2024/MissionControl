@@ -260,6 +260,14 @@ export default function Tasks() {
                   {task.parent_task_id && (
                     <span className="text-[10px] text-mc-text-muted flex-shrink-0">↳ subtask</span>
                   )}
+                  {task.scheduled_at && (
+                    <span
+                      className="text-mc-text-muted flex-shrink-0"
+                      title={"Scheduled: " + new Date(task.scheduled_at).toLocaleString()}
+                    >
+                      🕐
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-4 text-xs text-mc-text-muted flex-shrink-0">
                   <span className="hidden sm:inline">P{task.priority}</span>

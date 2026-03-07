@@ -29,6 +29,8 @@ interface FormState {
   delegated_to: string;
   priority: number;
   saveAsTemplate: boolean;
+  showSchedule: boolean;
+  scheduledAt: string;
 }
 
 export default function TaskCreate() {
@@ -43,6 +45,8 @@ export default function TaskCreate() {
     delegated_to: '',
     priority: 5,
     saveAsTemplate: false,
+    showSchedule: false,
+    scheduledAt: '',
   });
 
   const { data: agentData } = useQuery({
@@ -82,6 +86,7 @@ export default function TaskCreate() {
         description: form.description.trim() || undefined,
         delegated_to: form.delegated_to || undefined,
         priority: form.priority,
+        scheduled_at: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
       }),
     onSuccess: async (task) => {
       if (form.saveAsTemplate && form.title.trim()) {
@@ -218,6 +223,35 @@ export default function TaskCreate() {
             </p>
           </div>
         )}
+
+        {/* Schedule for later */}
+        <div className="border-t border-mc-border-primary pt-4">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 text-xs text-mc-text-muted hover:text-mc-text-primary transition-colors"
+            onClick={() => setForm((prev) => ({ ...prev, showSchedule: !prev.showSchedule, scheduledAt: '' }))}
+          >
+            <span>{form.showSchedule ? '▾' : '▸'}</span>
+            Schedule for later (optional)
+          </button>
+          {form.showSchedule && (
+            <div className="mt-2">
+              <label className="block text-xs font-semibold text-mc-text-secondary mb-1.5">
+                Run at
+              </label>
+              <input
+                type="datetime-local"
+                className="mc-input w-full"
+                min={new Date().toISOString().slice(0, 16)}
+                value={form.scheduledAt}
+                onChange={(e) => setForm((prev) => ({ ...prev, scheduledAt: e.target.value }))}
+              />
+              <p className="text-[10px] text-mc-text-muted mt-1">
+                Task will stay queued until this time, then activate automatically.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Save as template checkbox */}
         <label className="flex items-center gap-2 text-xs text-mc-text-muted cursor-pointer select-none">

@@ -51,6 +51,7 @@ export interface Task {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  scheduled_at: string | null;
 }
 
 export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'awaiting_approval';
