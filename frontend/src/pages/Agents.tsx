@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agentsApi } from '@/api/client';
@@ -165,19 +165,51 @@ function AgentCard({ agent }: { agent: Agent }) {
 export default function Agents() {
   const [filterTier, setFilterTier] = useState<number | undefined>();
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
+  const [search, setSearch] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['agents', filterTier, filterStatus],
     queryFn: () => agentsApi.list({ tier: filterTier, status: filterStatus }),
   });
 
-  const agents = data?.agents || [];
+  const allAgents = data?.agents || [];
+
+  const agents = useMemo(() => {
+    if (!search.trim()) return allAgents;
+    const q = search.toLowerCase();
+    return allAgents.filter((a: Agent) => a.name.toLowerCase().includes(q));
+  }, [allAgents, search]);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold">Agents ({data?.total || 0})</h2>
-        <div className="flex gap-2">
+        <h2 className="text-xl font-bold">
+          Agents
+          {search && allAgents.length > 0
+            ? <span className="text-sm font-normal text-mc-text-muted ml-2">({agents.length} of {allAgents.length})</span>
+            : <span className="text-sm font-normal text-mc-text-muted ml-2">({data?.total || 0})</span>
+          }
+        </h2>
+        <div className="flex gap-2 flex-wrap">
+          {/* Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search agents…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-mc-bg-secondary border border-mc-border-primary rounded px-3 py-1.5 text-sm text-mc-text-primary placeholder-mc-text-muted focus:outline-none focus:border-mc-accent-blue w-44 pr-7"
+            />
+            {search && (
+              <button
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-mc-text-muted hover:text-mc-text-primary transition-colors"
+                onClick={() => setSearch('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <select
             className="mc-input text-xs"
             value={filterTier ?? ''}
@@ -208,10 +240,19 @@ export default function Agents() {
         <p className="text-mc-text-muted">Loading agents...</p>
       ) : agents.length === 0 ? (
         <div className="mc-card text-center py-12">
-          <p className="text-mc-text-muted mb-2">No agents registered yet.</p>
-          <p className="text-xs text-mc-text-muted">
-            Start agents with: <code className="bg-mc-bg-tertiary px-2 py-1 rounded">python -m agents.runner</code>
-          </p>
+          {search ? (
+            <>
+              <p className="text-mc-text-muted mb-2">No agents match "{search}"</p>
+              <button className="mc-btn-secondary text-xs mt-2" onClick={() => setSearch('')}>Clear search</button>
+            </>
+          ) : (
+            <>
+              <p className="text-mc-text-muted mb-2">No agents registered yet.</p>
+              <p className="text-xs text-mc-text-muted">
+                Start agents with: <code className="bg-mc-bg-tertiary px-2 py-1 rounded">python -m agents.runner</code>
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

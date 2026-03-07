@@ -238,9 +238,13 @@ export default function TaskDetail() {
               </span>
               <span className="text-xs text-mc-text-muted">Priority {task.priority}</span>
               {task.agent_id && (
-                <span className="text-xs text-mc-text-muted">
-                  Agent: <span className="text-mc-text-secondary font-mono">{task.agent_id.slice(0, 8)}…</span>
-                </span>
+                <Link
+                  to={`/agents/${task.agent_id}`}
+                  className="text-xs text-mc-accent-blue hover:underline"
+                  title={task.agent_id}
+                >
+                  Agent: {task.agent_id.slice(0, 8)}…
+                </Link>
               )}
               {task.delegated_to && (
                 <span className="text-xs text-mc-text-muted">
