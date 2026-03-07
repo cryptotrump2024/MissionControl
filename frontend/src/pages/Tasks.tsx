@@ -148,6 +148,7 @@ export default function Tasks() {
         </div>
       ) : (
         <>
+          <div className="overflow-x-auto">
           <div className="space-y-2">
             {pagedTasks.map((task: Task) => (
               <div
@@ -159,20 +160,21 @@ export default function Tasks() {
                   <span className={`mc-badge text-[10px] whitespace-nowrap ${STATUS_COLORS[task.status] || ''}`}>
                     {task.status.replace('_', ' ')}
                   </span>
-                  <span className="text-sm text-mc-text-primary truncate">{task.title}</span>
+                  <span className="text-sm text-mc-text-primary truncate max-w-[180px]">{task.title}</span>
                   {task.parent_task_id && (
                     <span className="text-[10px] text-mc-text-muted flex-shrink-0">↳ subtask</span>
                   )}
                 </div>
                 <div className="flex items-center gap-4 text-xs text-mc-text-muted flex-shrink-0">
-                  <span>P{task.priority}</span>
-                  {task.tokens_used > 0 && <span>{task.tokens_used.toLocaleString()} tokens</span>}
+                  <span className="hidden sm:inline">P{task.priority}</span>
+                  {task.tokens_used > 0 && <span className="hidden sm:inline">{task.tokens_used.toLocaleString()} tokens</span>}
                   {task.cost > 0 && <span className="text-mc-accent-amber">${task.cost.toFixed(4)}</span>}
-                  <span>{new Date(task.created_at).toLocaleTimeString()}</span>
+                  <span className="hidden sm:inline">{new Date(task.created_at).toLocaleTimeString()}</span>
                   <span className="text-mc-accent-blue text-[10px]">→</span>
                 </div>
               </div>
             ))}
+          </div>
           </div>
 
           {/* Pagination controls */}

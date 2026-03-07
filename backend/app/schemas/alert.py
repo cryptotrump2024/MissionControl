@@ -15,3 +15,11 @@ class AlertResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AlertCreate(BaseModel):
+    type: str = "manual"
+    severity: str = "warning"
+    message: str
+    agent_id: UUID | None = None
+    task_id: UUID | None = None

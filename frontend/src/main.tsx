@@ -15,6 +15,7 @@ import Costs from '@/pages/Costs';
 import Approvals from '@/pages/Approvals';
 import AlertsPage from '@/pages/AlertsPage';
 import Settings from '@/pages/Settings';
+import Templates from '@/pages/Templates';
 import NotFound from '@/pages/NotFound';
 import '@/styles/globals.css';
 
@@ -45,6 +46,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/approvals" element={<Approvals />} />
               <Route path="/alerts" element={<AlertsPage />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/templates" element={<Templates />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

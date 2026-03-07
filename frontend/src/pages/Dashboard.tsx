@@ -172,7 +172,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <StatCard
           label="Total Agents"
           value={stats ? stats.agents.total : '—'}
@@ -197,7 +197,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Agent Status Grid */}
         <div className="mc-card">
           <h3 className="text-sm font-semibold text-mc-text-secondary mb-3">Agent Status</h3>
@@ -234,8 +234,8 @@ export default function Dashboard() {
             {events.length === 0 ? (
               <p className="text-sm text-mc-text-muted">Waiting for events...</p>
             ) : (
-              events.slice(0, 20).map((event: WSEvent, i: number) => (
-                <div key={i} className="flex items-start gap-2 py-1 text-xs">
+              events.slice(0, 20).map((event: WSEvent) => (
+                <div key={`${event.type}-${event.timestamp}`} className="flex items-start gap-2 py-1 text-xs">
                   <span className="text-mc-text-muted whitespace-nowrap">
                     {new Date(event.timestamp).toLocaleTimeString()}
                   </span>
@@ -337,8 +337,8 @@ export default function Dashboard() {
               Waiting for events...
             </p>
           ) : (
-            events.slice(0, 10).map((event: WSEvent, i: number) => (
-              <div key={i} className="flex items-start gap-2 py-1 px-1 rounded hover:bg-mc-bg-hover">
+            events.slice(0, 10).map((event: WSEvent) => (
+              <div key={`${event.type}-${event.timestamp}`} className="flex items-start gap-2 py-1 px-1 rounded hover:bg-mc-bg-hover">
                 <span className="text-mc-text-muted whitespace-nowrap flex-shrink-0 w-14">
                   {formatEventAge(event.timestamp)}
                 </span>
