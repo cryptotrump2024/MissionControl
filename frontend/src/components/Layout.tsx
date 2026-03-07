@@ -12,6 +12,7 @@ const navItems = [
   { path: '/costs', label: 'Costs', icon: '$' },
   { path: '/approvals', label: 'Approvals', icon: '✓' },
   { path: '/alerts', label: 'Alerts', icon: '⚠' },
+  { path: '/settings', label: 'Settings', icon: '⚙' },
 ];
 
 export default function Layout() {

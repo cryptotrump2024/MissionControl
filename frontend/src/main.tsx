@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Layout from '@/components/Layout';
 import Dashboard from '@/pages/Dashboard';
 import Agents from '@/pages/Agents';
@@ -13,6 +14,7 @@ import Logs from '@/pages/Logs';
 import Costs from '@/pages/Costs';
 import Approvals from '@/pages/Approvals';
 import AlertsPage from '@/pages/AlertsPage';
+import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 import '@/styles/globals.css';
 
@@ -27,24 +29,27 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/agents" element={<Agents />} />
-            <Route path="/agents/:agentId" element={<AgentDetail />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/tasks/create" element={<TaskCreate />} />
-            <Route path="/tasks/:taskId" element={<TaskDetail />} />
-            <Route path="/logs" element={<Logs />} />
-            <Route path="/costs" element={<Costs />} />
-            <Route path="/approvals" element={<Approvals />} />
-            <Route path="/alerts" element={<AlertsPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/agents" element={<Agents />} />
+              <Route path="/agents/:agentId" element={<AgentDetail />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/tasks/create" element={<TaskCreate />} />
+              <Route path="/tasks/:taskId" element={<TaskDetail />} />
+              <Route path="/logs" element={<Logs />} />
+              <Route path="/costs" element={<Costs />} />
+              <Route path="/approvals" element={<Approvals />} />
+              <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );
