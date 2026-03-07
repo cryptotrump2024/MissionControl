@@ -113,5 +113,8 @@ async def startup_event() -> None:
 async def shutdown_event() -> None:
     logger.info("Mission Control shutting down...")
     _scheduler.shutdown(wait=False)
+    demo_task = getattr(app.state, "demo_task", None)
+    if demo_task and not demo_task.done():
+        demo_task.cancel()
     await close_redis()
     logger.info("Mission Control stopped.")

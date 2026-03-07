@@ -22,7 +22,8 @@ async def demo_status(request: Request):
 
 @router.post("/api/demo/start")
 async def demo_start(request: Request):
-    if getattr(request.app.state, "demo_running", False):
+    existing = getattr(request.app.state, "demo_task", None)
+    if existing and not existing.done():
         return {"status": "already_running"}
     request.app.state.demo_running = True
     request.app.state.demo_tick = 0
