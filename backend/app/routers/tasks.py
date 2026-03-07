@@ -137,12 +137,17 @@ async def bulk_task_action(body: _BulkAction, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=422, detail="task_ids must contain 1–100 items")
     if body.action == 'reassign' and not body.agent_id:
         raise HTTPException(status_code=422, detail="agent_id required for reassign")
+    if body.action == 'reassign' and body.agent_id:
+        agent_check = await db.execute(select(Agent.id).where(Agent.id == body.agent_id))
+        if not agent_check.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Agent not found")
 
     result = await db.execute(select(Task).where(Task.id.in_(body.task_ids)))
     db_tasks = result.scalars().all()
 
     updated = 0
-    skipped = 0
+    # Count IDs not found in DB as skipped from the start
+    skipped = len(body.task_ids) - len(db_tasks)
     now = datetime.now(timezone.utc)
 
     for task in db_tasks:
