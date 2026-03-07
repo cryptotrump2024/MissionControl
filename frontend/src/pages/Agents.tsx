@@ -11,9 +11,7 @@ function AgentCard({ agent }: { agent: Agent }) {
   const tierConfig = TIER_CONFIG[agent.tier as keyof typeof TIER_CONFIG];
   const statusConfig = STATUS_CONFIG[agent.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.offline;
 
-  function handleClick(e: React.MouseEvent) {
-    // If the user clicks the expand/collapse icon area, toggle expansion;
-    // a regular click navigates to the detail page.
+  function handleClick() {
     navigate(`/agents/${agent.id}`);
   }
 

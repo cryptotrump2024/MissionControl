@@ -4,7 +4,7 @@
  * components that want to react to specific WebSocket event types.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useWSStore } from '@/stores/websocket';
 import type { WSEvent } from '@/types';
 
