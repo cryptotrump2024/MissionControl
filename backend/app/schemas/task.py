@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TaskCreate(BaseModel):
@@ -15,6 +15,13 @@ class TaskCreate(BaseModel):
     delegated_by: UUID | None = None
     delegated_to: UUID | None = None
     scheduled_at: datetime | None = None
+
+    @field_validator("scheduled_at", mode="before")
+    @classmethod
+    def ensure_tz_aware(cls, v: object) -> object:
+        if isinstance(v, datetime) and v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v
 
 
 class TaskUpdate(BaseModel):
