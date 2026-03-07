@@ -28,7 +28,7 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 5
 
   backend:
@@ -53,6 +53,12 @@ services:
       redis:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   frontend:
     build:
@@ -71,6 +77,29 @@ services:
       - backend
     command: npm run dev -- --host 0.0.0.0
 
+  agents:
+    build:
+      context: .
+      dockerfile: agents/Dockerfile
+    environment:
+      - MISSION_CONTROL_URL=http://backend:8000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://openrouter.ai/api/v1}
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mc-network
+
 volumes:
   mc_pgdata:
   mc_redis_data:
+
+networks:
+  mc-network:
+    driver: bridge

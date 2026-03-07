@@ -5,6 +5,7 @@ Run: python -m scripts.seed
 
 import asyncio
 import random
+import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -102,6 +103,8 @@ LOG_MESSAGES = [
 
 async def seed():
     """Seed the database with demo data."""
+    force = '--force' in sys.argv
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -109,9 +112,11 @@ async def seed():
         # Check if already seeded
         from sqlalchemy import select, func
         count = await db.execute(select(func.count(Agent.id)))
-        if count.scalar() > 0:
-            print("Database already has data. Skipping seed.")
+        if count.scalar() > 0 and not force:
+            print("Database already has data. Use --force to re-seed.")
             return
+        elif count.scalar() > 0 and force:
+            print("Force re-seeding...")
 
         print("Seeding database...")
         now = datetime.now(timezone.utc)

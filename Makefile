@@ -1,8 +1,16 @@
-.PHONY: setup dev stop clean migrate seed test lint
+.PHONY: setup dev dev-full dev-bg start stop clean migrate seed seed-force test lint shell-backend agents-local
 
-# Start everything
-dev:
+# Run with agents (full stack)
+dev-full:
 	docker-compose up --build
+
+# Quick start (no rebuild)
+start:
+	docker-compose up
+
+# Only backend + DB (no agents)
+dev:
+	docker-compose up --build backend postgres redis
 
 # Start in background
 dev-bg:
@@ -23,6 +31,10 @@ migrate:
 # Seed demo data
 seed:
 	docker-compose exec backend python -m scripts.seed
+
+# Force re-seed
+seed-force:
+	docker-compose exec backend python -m scripts.seed --force
 
 # Run backend tests
 test-backend:
@@ -51,6 +63,10 @@ logs:
 logs-backend:
 	docker-compose logs -f backend
 
-# Start agents (run after backend is up)
-agents:
-	docker-compose exec backend python -m agents.runner
+# Open a shell in the backend container
+shell-backend:
+	docker-compose exec backend bash
+
+# Run just the agents locally (outside Docker, for development)
+agents-local:
+	cd agents && PYTHONPATH=.. python -m runner
