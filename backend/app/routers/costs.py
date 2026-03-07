@@ -174,3 +174,40 @@ async def daily_costs(
         }
         for row in result.all()
     ]
+
+
+@router.get("/by-agent")
+async def costs_by_agent(db: AsyncSession = Depends(get_db)):
+    """Cost breakdown grouped by agent, sorted by total cost descending."""
+    from app.models.agent import Agent
+
+    result = await db.execute(
+        select(
+            CostRecord.agent_id,
+            Agent.name.label("agent_name"),
+            func.sum(CostRecord.cost_usd).label("total_usd"),
+            func.count(CostRecord.id).label("record_count"),
+            func.sum(CostRecord.input_tokens).label("input_tokens"),
+            func.sum(CostRecord.output_tokens).label("output_tokens"),
+        )
+        .join(Agent, Agent.id == CostRecord.agent_id, isouter=True)
+        .where(CostRecord.agent_id.isnot(None))
+        .group_by(CostRecord.agent_id, Agent.name)
+        .order_by(func.sum(CostRecord.cost_usd).desc())
+    )
+    rows = result.all()
+
+    grand_total = sum(r.total_usd for r in rows) or 1.0  # avoid division by zero
+
+    return [
+        {
+            "agent_id": str(r.agent_id),
+            "agent_name": r.agent_name or "Unknown",
+            "total_usd": round(float(r.total_usd), 6),
+            "record_count": r.record_count,
+            "input_tokens": r.input_tokens,
+            "output_tokens": r.output_tokens,
+            "pct_of_total": round((float(r.total_usd) / grand_total) * 100, 1),
+        }
+        for r in rows
+    ]
