@@ -5,10 +5,10 @@
  * On success, redirects to /tasks/:newTaskId
  */
 
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { tasksApi, agentsApi } from '@/api/client';
+import { tasksApi, agentsApi, templatesApi } from '@/api/client';
 
 const PRIORITY_OPTIONS = [
   { value: 1, label: '1 — Critical' },
@@ -28,16 +28,20 @@ interface FormState {
   description: string;
   delegated_to: string;
   priority: number;
+  saveAsTemplate: boolean;
 }
 
 export default function TaskCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const templateId = searchParams.get("template");
 
   const [form, setForm] = useState<FormState>({
     title: '',
     description: '',
     delegated_to: '',
     priority: 5,
+    saveAsTemplate: false,
   });
 
   const { data: agentData } = useQuery({
@@ -47,6 +51,24 @@ export default function TaskCreate() {
   });
   const agents = agentData?.agents || [];
 
+  const { data: templateData } = useQuery({
+    queryKey: ["template-prefill", templateId],
+    queryFn: () => templatesApi.list().then(ts => ts.find(t => t.id === templateId) ?? null),
+    enabled: !!templateId,
+  });
+
+  useEffect(() => {
+    if (templateData) {
+      setForm(prev => ({
+        ...prev,
+        title: templateData.name,
+        description: templateData.description ?? "",
+        delegated_to: templateData.agent_id ?? "",
+        priority: templateData.priority,
+      }));
+    }
+  }, [templateData]);
+
   const createMutation = useMutation({
     mutationFn: () =>
       tasksApi.create({
@@ -55,7 +77,20 @@ export default function TaskCreate() {
         delegated_to: form.delegated_to || undefined,
         priority: form.priority,
       }),
-    onSuccess: (task) => {
+    onSuccess: async (task) => {
+      if (form.saveAsTemplate && form.title.trim()) {
+        try {
+          await templatesApi.create({
+            name: form.title.trim(),
+            description: form.description.trim() || null,
+            agent_id: form.delegated_to || null,
+            priority: form.priority,
+            payload: null,
+          });
+        } catch {
+          // non-blocking
+        }
+      }
       navigate(`/tasks/${task.id}`);
     },
   });
@@ -176,6 +211,17 @@ export default function TaskCreate() {
             </p>
           </div>
         )}
+
+        {/* Save as template checkbox */}
+        <label className="flex items-center gap-2 text-xs text-mc-text-muted cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={form.saveAsTemplate}
+            onChange={e => setForm(prev => ({ ...prev, saveAsTemplate: e.target.checked }))}
+            className="rounded"
+          />
+          Save as template for reuse
+        </label>
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-2">

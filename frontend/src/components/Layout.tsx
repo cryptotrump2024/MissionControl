@@ -12,6 +12,7 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: '◉' },
   { path: '/agents', label: 'Agents', icon: '⬡' },
   { path: '/tasks', label: 'Tasks', icon: '☐' },
+  { path: '/templates', label: 'Templates', icon: '⊞' },
   { path: '/logs', label: 'Logs', icon: '≡' },
   { path: '/costs', label: 'Costs', icon: '$' },
   { path: '/approvals', label: 'Approvals', icon: '✓' },
