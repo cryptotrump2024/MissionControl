@@ -104,6 +104,62 @@ async def get_agent_tasks(
     return TaskListResponse(tasks=tasks, total=total)
 
 
+
+@router.get("/{agent_id}/metrics")
+async def get_agent_metrics(
+    agent_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get performance metrics for an agent."""
+    from app.models.task import Task
+
+    # Total tasks and status breakdown
+    task_result = await db.execute(
+        select(Task.status, func.count(Task.id).label('count'))
+        .where(Task.agent_id == agent_id)
+        .group_by(Task.status)
+    )
+    status_counts = {row.status: row.count for row in task_result.fetchall()}
+
+    total = sum(status_counts.values())
+    completed = status_counts.get('completed', 0)
+    failed = status_counts.get('failed', 0)
+
+    # Avg task duration (completed tasks only)
+    duration_result = await db.execute(
+        select(
+            func.avg(
+                func.extract('epoch', Task.completed_at) -
+                func.extract('epoch', Task.started_at)
+            ).label('avg_seconds')
+        )
+        .where(Task.agent_id == agent_id)
+        .where(Task.status == 'completed')
+        .where(Task.started_at.isnot(None))
+        .where(Task.completed_at.isnot(None))
+    )
+    avg_duration = duration_result.scalar() or 0
+
+    # Total cost
+    cost_result = await db.execute(
+        select(func.sum(Task.cost)).where(Task.agent_id == agent_id)
+    )
+    total_cost = cost_result.scalar() or 0.0
+
+    return {
+        "agent_id": str(agent_id),
+        "total_tasks": total,
+        "completed": completed,
+        "failed": failed,
+        "running": status_counts.get('running', 0),
+        "queued": status_counts.get('queued', 0),
+        "success_rate": round((completed / total * 100) if total > 0 else 0, 1),
+        "failure_rate": round((failed / total * 100) if total > 0 else 0, 1),
+        "avg_duration_seconds": round(avg_duration, 1),
+        "total_cost_usd": round(total_cost, 6),
+        "status_breakdown": status_counts,
+    }
+
 @router.get("/{agent_id}", response_model=AgentResponse)
 async def get_agent(agent_id: UUID, db: AsyncSession = Depends(get_db)):
     """Get full details for a single agent."""
