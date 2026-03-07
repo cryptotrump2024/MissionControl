@@ -58,6 +58,21 @@ export const agentsApi = {
     const qs = searchParams.toString();
     return request<TaskListResponse>(`/api/agents/${agentId}/tasks${qs ? `?${qs}` : ''}`);
   },
+
+  metrics: (agentId: string) =>
+    request<{
+      agent_id: string;
+      total_tasks: number;
+      completed: number;
+      failed: number;
+      running: number;
+      queued: number;
+      success_rate: number;
+      failure_rate: number;
+      avg_duration_seconds: number;
+      total_cost_usd: number;
+      status_breakdown: Record<string, number>;
+    }>(`/api/agents/${agentId}/metrics`),
 };
 
 // ── Tasks ───────────────────────────────────────────────────────────
@@ -97,6 +112,18 @@ export const tasksApi = {
     request<Task>(`/api/tasks/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    }),
+
+  cancel: (id: string) =>
+    request<Task>(`/api/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'cancelled' }),
+    }),
+
+  retry: (id: string) =>
+    request<Task>(`/api/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'queued' }),
     }),
 };
 

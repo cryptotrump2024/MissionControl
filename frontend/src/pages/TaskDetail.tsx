@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksApi, logsApi } from '@/api/client';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import DelegationTree from '@/components/DelegationTree';
@@ -150,12 +150,44 @@ function LogViewer({ taskId }: { taskId: string }) {
 export default function TaskDetail() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { subscribe } = useWebSocket();
 
   const { data: task, isLoading, isError } = useQuery({
     queryKey: ['task', taskId],
     queryFn: () => tasksApi.get(taskId!),
     enabled: !!taskId,
     refetchInterval: 5000, // Poll for status updates
+  });
+
+  // Invalidate task query on WebSocket task events
+  useEffect(() => {
+    if (!taskId) return;
+    const events = ['task_updated', 'task_completed', 'task_failed'] as const;
+    const unsubs = events.map((evtType) =>
+      subscribe(evtType, (data) => {
+        const d = data as unknown as { id?: string };
+        if (d?.id === taskId) {
+          queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+        }
+      })
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [subscribe, taskId, queryClient]);
+
+  const cancelMutation = useMutation({
+    mutationFn: () => tasksApi.cancel(taskId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+    },
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: () => tasksApi.retry(taskId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 
   if (!taskId) {
@@ -218,12 +250,32 @@ export default function TaskDetail() {
             </div>
           </div>
 
-          <button
-            className="mc-btn-secondary text-xs flex-shrink-0"
-            onClick={() => navigate('/tasks')}
-          >
-            ← Back
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {task.status === 'queued' || task.status === 'running' ? (
+              <button
+                className="mc-btn text-xs bg-mc-accent-red/20 text-mc-accent-red hover:bg-mc-accent-red/30 border-mc-accent-red/30"
+                onClick={() => cancelMutation.mutate()}
+                disabled={cancelMutation.isPending}
+              >
+                {cancelMutation.isPending ? 'Cancelling…' : '✕ Cancel'}
+              </button>
+            ) : null}
+            {task.status === 'failed' || task.status === 'cancelled' ? (
+              <button
+                className="mc-btn text-xs bg-mc-accent-amber/20 text-mc-accent-amber hover:bg-mc-accent-amber/30 border-mc-accent-amber/30"
+                onClick={() => retryMutation.mutate()}
+                disabled={retryMutation.isPending}
+              >
+                {retryMutation.isPending ? 'Retrying…' : '↺ Retry'}
+              </button>
+            ) : null}
+            <button
+              className="mc-btn-secondary text-xs"
+              onClick={() => navigate('/tasks')}
+            >
+              ← Back
+            </button>
+          </div>
         </div>
 
         {/* Timestamps */}
