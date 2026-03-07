@@ -2,7 +2,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies (npm install works without lockfile)
+# Install dependencies
 COPY package.json ./
 RUN npm install
 
@@ -15,16 +15,18 @@ ENV VITE_WS_URL=$VITE_WS_URL
 
 RUN npm run build
 
-# Production stage: serve static files via serve
+# Production stage: use npx serve which handles port correctly
 FROM node:20-alpine
 
 WORKDIR /app
-RUN npm install -g serve
 
+# Copy built assets
 COPY --from=builder /app/dist ./dist
 
-ENV PORT=8080
+# Install serve explicitly at a version that uses -p flag
+RUN npm install -g serve@13
+
 EXPOSE 8080
 
-# serve v14+ uses -l (--listen) with a port number, binds to 0.0.0.0 by default
-CMD ["sh", "-c", "serve -s dist -l ${PORT:-8080}"]
+# serve v13 uses -p flag; -s for SPA mode (redirects 404 to index.html)
+CMD ["sh", "-c", "serve -s dist -p ${PORT:-8080}"]
