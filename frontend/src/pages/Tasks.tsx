@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { tasksApi } from '@/api/client';
+import { tasksApi, agentsApi } from '@/api/client';
 import type { Task } from '@/types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,10 +16,17 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Tasks() {
   const navigate = useNavigate();
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
+  const [filterAgent, setFilterAgent] = useState<string | undefined>();
+
+  const { data: agentData } = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => agentsApi.list(),
+    staleTime: 60_000,
+  });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['tasks', filterStatus],
-    queryFn: () => tasksApi.list({ status: filterStatus }),
+    queryKey: ['tasks', filterStatus, filterAgent],
+    queryFn: () => tasksApi.list({ status: filterStatus, agent_id: filterAgent }),
   });
 
   const tasks = data?.tasks || [];
@@ -39,6 +46,18 @@ export default function Tasks() {
             <option value="running">Running</option>
             <option value="completed">Completed</option>
             <option value="failed">Failed</option>
+          </select>
+          <select
+            className="mc-input text-xs"
+            value={filterAgent ?? ''}
+            onChange={(e) => setFilterAgent(e.target.value || undefined)}
+          >
+            <option value="">All Agents</option>
+            {(agentData?.agents || []).map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.name}
+              </option>
+            ))}
           </select>
           <button className="mc-btn-primary text-xs" onClick={() => navigate('/tasks/create')}>
             + New Task

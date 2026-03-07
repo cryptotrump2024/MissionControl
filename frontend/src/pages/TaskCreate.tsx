@@ -7,17 +7,8 @@
 
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { tasksApi } from '@/api/client';
-
-const AGENT_OPTIONS = [
-  { value: '', label: 'No specific agent (auto-assign)' },
-  { value: 'ceo', label: 'CEO (Executive)' },
-  { value: 'researcher', label: 'Researcher' },
-  { value: 'writer', label: 'Writer' },
-  { value: 'developer', label: 'Developer' },
-  { value: 'auditor', label: 'Auditor' },
-];
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { tasksApi, agentsApi } from '@/api/client';
 
 const PRIORITY_OPTIONS = [
   { value: 1, label: '1 — Critical' },
@@ -48,6 +39,13 @@ export default function TaskCreate() {
     delegated_to: '',
     priority: 5,
   });
+
+  const { data: agentData } = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => agentsApi.list(),
+    staleTime: 30_000,
+  });
+  const agents = agentData?.agents || [];
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -129,17 +127,23 @@ export default function TaskCreate() {
             <label className="block text-xs font-semibold text-mc-text-secondary mb-1.5">
               Assign to Agent
             </label>
-            <select
-              name="delegated_to"
-              className="mc-input w-full"
-              value={form.delegated_to}
-              onChange={handleChange}
-            >
-              {AGENT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
+            <select name="delegated_to" className="mc-input w-full" value={form.delegated_to} onChange={handleChange}>
+              <option value="">No specific agent (auto-assign)</option>
+              {agents.map((agent) => (
+                <option key={agent.type} value={agent.type}>
+                  {agent.name} ({agent.type})
                 </option>
               ))}
+              {/* Fallback options if no agents registered */}
+              {agents.length === 0 && (
+                <>
+                  <option value="ceo">CEO (Executive)</option>
+                  <option value="researcher">Researcher</option>
+                  <option value="writer">Writer</option>
+                  <option value="developer">Developer</option>
+                  <option value="auditor">Auditor</option>
+                </>
+              )}
             </select>
           </div>
 
