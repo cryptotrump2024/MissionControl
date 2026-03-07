@@ -28,6 +28,13 @@ function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
 const TASK_STATUS_COLORS: Record<string, string> = {
   queued: 'bg-mc-accent-amber/20 text-mc-accent-amber border-mc-accent-amber/30',
   running: 'bg-mc-accent-blue/20 text-mc-accent-blue border-mc-accent-blue/30',
@@ -68,6 +75,13 @@ export default function AgentDetail() {
     queryFn: () => agentsApi.tasks(agentId!, { limit: 50 }),
     enabled: !!agentId,
     refetchInterval: 15000,
+  });
+
+  const { data: metrics } = useQuery({
+    queryKey: ['agent-metrics', agentId],
+    queryFn: () => agentsApi.metrics(agentId!),
+    enabled: !!agentId,
+    refetchInterval: 30000,
   });
 
   if (!agentId) {
@@ -176,6 +190,41 @@ export default function AgentDetail() {
           </p>
         </div>
       </div>
+
+      {/* ── Performance Metrics ── */}
+      {metrics && (
+        <div className="mc-card">
+          <h3 className="text-sm font-semibold text-mc-text-secondary mb-3">Performance Metrics</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-mc-text-muted">Success Rate</p>
+              <p className="text-2xl font-bold text-mc-accent-green mt-1">{metrics.success_rate}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-mc-text-muted">Total / Done / Failed</p>
+              <p className="text-lg font-bold text-mc-text-primary mt-1">
+                {metrics.total_tasks}
+                <span className="text-sm font-normal text-mc-text-muted"> / </span>
+                <span className="text-mc-accent-green">{metrics.completed}</span>
+                <span className="text-sm font-normal text-mc-text-muted"> / </span>
+                <span className="text-mc-accent-red">{metrics.failed}</span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-mc-text-muted">Avg Duration</p>
+              <p className="text-2xl font-bold text-mc-accent-blue mt-1">
+                {metrics.avg_duration_seconds > 0 ? formatDuration(metrics.avg_duration_seconds) : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-mc-text-muted">Total Cost</p>
+              <p className="text-2xl font-bold text-mc-accent-amber mt-1">
+                ${metrics.total_cost_usd.toFixed(4)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Capabilities, Tools, Delegation Targets ── */}
       <div className="mc-card space-y-4">
