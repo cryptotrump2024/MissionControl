@@ -1,7 +1,7 @@
 /**
  * AgentDetail - Full detail view for a single agent.
  * Route: /agents/:agentId
- * Tabs: Overview | Logs
+ * Tabs: Overview | Logs | Metrics
  */
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -169,6 +169,7 @@ function AgentMetricsTab({ agentId }: { agentId: string }) {
     </div>
   );
 }
+
 function AgentLogsTab({ agentId }: { agentId: string }) {
   const { data: logs, isLoading, isError } = useQuery({ queryKey: ['agent-logs', agentId], queryFn: () => logsApi.list({ agent_id: agentId, limit: 50 }), refetchInterval: 15000 });
   if (isLoading) return (<div className="space-y-2">{[...Array(5)].map((_, i) => (<div key={i} className="h-8 bg-mc-bg-tertiary rounded animate-pulse" />))}</div>);
