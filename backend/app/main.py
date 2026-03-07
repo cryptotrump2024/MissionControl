@@ -10,6 +10,7 @@ from app.database import async_session
 from app.routers import agents, tasks, logs, costs, health, approvals, alerts, dashboard, seed, demo, export, settings_api, templates
 from app.services.heartbeat import check_heartbeats
 from app.services.alert_engine import check_alerts
+from app.services.scheduled_tasks import check_scheduled_tasks
 from app.services.redis_client import get_redis, close_redis
 from app.services.ws_manager import ws_manager
 
@@ -57,6 +58,14 @@ async def _alert_job() -> None:
         logger.error("Alert job failed: %s", exc, exc_info=True)
 
 
+async def _scheduled_tasks_job() -> None:
+    try:
+        async with async_session() as db:
+            await check_scheduled_tasks(db)
+    except Exception as exc:
+        logger.error("Scheduled tasks job failed: %s", exc, exc_info=True)
+
+
 # Routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(agents.router, prefix="/api/agents", tags=["Agents"])
@@ -89,7 +98,7 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.on_event("startup")
 async def startup_event() -> None:
     logger.info("Mission Control starting up...")
-    # Warm up Redis — fail fast if Redis is unreachable
+    # Warm up Redis -- fail fast if Redis is unreachable
     try:
         await get_redis().ping()
         logger.info("Redis connection OK")
@@ -104,9 +113,10 @@ async def startup_event() -> None:
         seconds=settings.alert_check_interval_seconds,
         id="alerts",
     )
+    _scheduler.add_job(_scheduled_tasks_job, "interval", seconds=60, id="scheduled_tasks")
     _scheduler.start()
     logger.info(
-        "Background services started (heartbeat=30s, alerts=%ds)",
+        "Background services started (heartbeat=30s, alerts=%ds, scheduled_tasks=60s)",
         settings.alert_check_interval_seconds,
     )
     logger.info("Mission Control ready.")

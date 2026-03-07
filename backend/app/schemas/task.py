@@ -14,6 +14,7 @@ class TaskCreate(BaseModel):
     parent_task_id: UUID | None = None
     delegated_by: UUID | None = None
     delegated_to: UUID | None = None
+    scheduled_at: datetime | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -47,6 +48,7 @@ class TaskResponse(BaseModel):
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
+    scheduled_at: datetime | None
 
     model_config = {"from_attributes": True}
 

@@ -34,6 +34,7 @@ async def create_task(task_in: TaskCreate, db: AsyncSession = Depends(get_db)):
         delegated_by=task_in.delegated_by,
         delegated_to=task_in.delegated_to,
         status="queued",
+        scheduled_at=task_in.scheduled_at,
     )
 
     if task_in.requires_approval:
@@ -59,28 +60,32 @@ async def create_task(task_in: TaskCreate, db: AsyncSession = Depends(get_db)):
         "priority": task.priority,
     })
 
-    # Push to Redis Stream so the appropriate agent picks it up
-    stream_key = f"tasks:{task.delegated_to or 'ceo'}"
-    task_payload = json.dumps({
-        "id": str(task.id),
-        "title": task.title,
-        "description": task.description or "",
-        "priority": task.priority,
-        "input_data": task.input_data or {},
-        "agent_id": str(task.agent_id) if task.agent_id else None,
-        "delegated_by": task.delegated_by,
-        "delegated_to": task.delegated_to,
-        "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
-    })
-    redis_client = get_redis()
-    try:
-        await redis_client.xadd(stream_key, {"task": task_payload})
-        logger.info("Task '%s' queued on stream '%s'", task.title, stream_key)
-    except Exception as exc:
-        logger.error(
-            "Failed to queue task '%s' on stream '%s': %s",
-            task.id, stream_key, exc, exc_info=True,
-        )
+    # Skip Redis push for tasks scheduled in the future
+    now_utc = datetime.now(timezone.utc)
+    is_future = task_in.scheduled_at is not None and task_in.scheduled_at > now_utc
+    if not is_future:
+        # Push to Redis Stream so the appropriate agent picks it up
+        stream_key = f"tasks:{task.delegated_to or 'ceo'}"
+        task_payload = json.dumps({
+            "id": str(task.id),
+            "title": task.title,
+            "description": task.description or "",
+            "priority": task.priority,
+            "input_data": task.input_data or {},
+            "agent_id": str(task.agent_id) if task.agent_id else None,
+            "delegated_by": task.delegated_by,
+            "delegated_to": task.delegated_to,
+            "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
+        })
+        redis_client = get_redis()
+        try:
+            await redis_client.xadd(stream_key, {"task": task_payload})
+            logger.info("Task queued on stream %s", stream_key)
+        except Exception as exc:
+            logger.error(
+                "Failed to queue task %s on stream %s: %s",
+                task.id, stream_key, exc, exc_info=True,
+            )
 
     return task
 
@@ -130,14 +135,14 @@ class _BulkAction(BaseModel):
 
 @router.post("/bulk")
 async def bulk_task_action(body: _BulkAction, db: AsyncSession = Depends(get_db)):
-    """Bulk cancel or reassign tasks. action: 'cancel' | 'reassign'. Max 100 task_ids."""
-    if body.action not in ('cancel', 'reassign'):
-        raise HTTPException(status_code=422, detail="action must be 'cancel' or 'reassign'")
+    """Bulk cancel or reassign tasks. action: cancel or reassign. Max 100 task_ids."""
+    if body.action not in ("cancel", "reassign"):
+        raise HTTPException(status_code=422, detail="action must be cancel or reassign")
     if not 1 <= len(body.task_ids) <= 100:
-        raise HTTPException(status_code=422, detail="task_ids must contain 1–100 items")
-    if body.action == 'reassign' and not body.agent_id:
+        raise HTTPException(status_code=422, detail="task_ids must contain 1-100 items")
+    if body.action == "reassign" and not body.agent_id:
         raise HTTPException(status_code=422, detail="agent_id required for reassign")
-    if body.action == 'reassign' and body.agent_id:
+    if body.action == "reassign" and body.agent_id:
         agent_check = await db.execute(select(Agent.id).where(Agent.id == body.agent_id))
         if not agent_check.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="Agent not found")
@@ -146,19 +151,18 @@ async def bulk_task_action(body: _BulkAction, db: AsyncSession = Depends(get_db)
     db_tasks = result.scalars().all()
 
     updated = 0
-    # Count IDs not found in DB as skipped from the start
     skipped = len(body.task_ids) - len(db_tasks)
     now = datetime.now(timezone.utc)
 
     for task in db_tasks:
-        if body.action == 'cancel':
-            if task.status in ('queued', 'running'):
-                task.status = 'cancelled'
+        if body.action == "cancel":
+            if task.status in ("queued", "running"):
+                task.status = "cancelled"
                 task.completed_at = now
                 updated += 1
             else:
                 skipped += 1
-        elif body.action == 'reassign':
+        elif body.action == "reassign":
             task.agent_id = body.agent_id
             updated += 1
 
@@ -189,7 +193,7 @@ async def get_task_logs(
     query = (
         select(LogEntry)
         .where(LogEntry.task_id == task_id)
-        .order_by(LogEntry.timestamp.asc())  # Oldest first for log viewer
+        .order_by(LogEntry.timestamp.asc())
         .offset(skip)
         .limit(limit)
     )
