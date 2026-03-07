@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { agentsApi } from '@/api/client';
 import { STATUS_CONFIG, TIER_CONFIG } from '@/types';
@@ -6,11 +7,23 @@ import type { Agent } from '@/types';
 
 function AgentCard({ agent }: { agent: Agent }) {
   const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
   const tierConfig = TIER_CONFIG[agent.tier as keyof typeof TIER_CONFIG];
   const statusConfig = STATUS_CONFIG[agent.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.offline;
 
+  function handleClick(e: React.MouseEvent) {
+    // If the user clicks the expand/collapse icon area, toggle expansion;
+    // a regular click navigates to the detail page.
+    navigate(`/agents/${agent.id}`);
+  }
+
+  function handleExpandToggle(e: React.MouseEvent) {
+    e.stopPropagation();
+    setExpanded(!expanded);
+  }
+
   return (
-    <div className={`mc-card cursor-pointer transition-all ${expanded ? 'ring-1 ring-mc-accent-blue/30' : ''}`} onClick={() => setExpanded(!expanded)}>
+    <div className={`mc-card cursor-pointer transition-all ${expanded ? 'ring-1 ring-mc-accent-blue/30' : ''}`} onClick={handleClick}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <span
@@ -33,9 +46,16 @@ function AgentCard({ agent }: { agent: Agent }) {
             </div>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-right flex flex-col items-end gap-1">
           <p className="text-xs text-mc-text-muted">{agent.total_tasks} tasks</p>
           <p className="text-xs text-mc-accent-amber">${agent.total_cost.toFixed(4)}</p>
+          <button
+            className="text-[10px] text-mc-text-muted hover:text-mc-text-secondary transition-colors mt-1"
+            onClick={handleExpandToggle}
+            title={expanded ? 'Collapse' : 'Expand quick view'}
+          >
+            {expanded ? '▲ less' : '▼ more'}
+          </button>
         </div>
       </div>
 

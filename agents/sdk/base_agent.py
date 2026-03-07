@@ -96,6 +96,10 @@ class BaseAgent:
         self.config = config
         self.mc = MCClient(base_url=mc_url)
 
+        # Wire the module-level MC client so built-in tools (e.g. delegate_task) can use it
+        from agents.sdk.builtin_tools import set_mc_client
+        set_mc_client(self.mc)
+
         # Resolve OAuth tokens: use explicit params, fall back to env vars
         resolved_key = api_key or os.getenv("ANTHROPIC_API_KEY") or None
         resolved_backup = backup_api_key or os.getenv("ANTHROPIC_API_KEY_BACKUP") or None

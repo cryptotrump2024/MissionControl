@@ -7,11 +7,22 @@ but do NOT execute external actions (no emails, no posts, no external API calls)
 
 import json
 import logging
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from agents.sdk.tools import tool
 
+if TYPE_CHECKING:
+    from agents.sdk.mc_client import MCClient
+
 logger = logging.getLogger(__name__)
+
+# Module-level MC client ref, set by BaseAgent on startup
+_mc_client: "MCClient | None" = None
+
+
+def set_mc_client(client: "MCClient") -> None:
+    global _mc_client
+    _mc_client = client
 
 
 # ── Research Tools ───────────────────────────────────────────────────
@@ -182,7 +193,7 @@ async def summarize(text: str, max_points: int = 5) -> str:
 
 @tool(
     name="delegate_task",
-    description="Delegate a subtask to another agent. Specify the target agent type (researcher, writer, developer) and the task details. Only delegate to agents you have authority over.",
+    description="Delegate a subtask to another agent. Specify the target agent type (researcher, writer, developer, auditor) and the task details. Only delegate to agents in your delegation_targets list.",
 )
 async def delegate_task(
     target_agent: str,
@@ -190,17 +201,26 @@ async def delegate_task(
     task_description: str,
     priority: int = 5,
 ) -> str:
-    """
-    Create a delegation request. The orchestrator will validate and route it.
-    Note: In the actual runtime, this tool's result triggers the orchestrator.
-    """
-    return json.dumps({
-        "_delegation_request": True,
-        "target_agent": target_agent,
-        "title": task_title,
-        "description": task_description,
-        "priority": priority,
-    })
+    """Actually creates a subtask via MissionControl API and pushes to Redis stream."""
+    if _mc_client is None:
+        return json.dumps({"error": "MCClient not initialized - delegation unavailable"})
+
+    try:
+        task = await _mc_client.create_task({
+            "title": task_title,
+            "description": task_description,
+            "delegated_to": target_agent,
+            "priority": priority,
+        })
+        task_id = task.get("id", "unknown")
+        return json.dumps({
+            "success": True,
+            "task_id": task_id,
+            "target_agent": target_agent,
+            "message": f"Task '{task_title}' delegated to {target_agent} (id={task_id})"
+        })
+    except Exception as e:
+        return json.dumps({"error": f"Delegation failed: {str(e)}"})
 
 
 @tool(

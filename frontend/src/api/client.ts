@@ -50,6 +50,14 @@ export const agentsApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  tasks: (agentId: string, params?: { status?: string; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const qs = searchParams.toString();
+    return request<TaskListResponse>(`/api/agents/${agentId}/tasks${qs ? `?${qs}` : ''}`);
+  },
 };
 
 // ── Tasks ───────────────────────────────────────────────────────────

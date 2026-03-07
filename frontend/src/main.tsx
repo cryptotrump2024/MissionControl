@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import Dashboard from '@/pages/Dashboard';
 import Agents from '@/pages/Agents';
+import AgentDetail from '@/pages/AgentDetail';
 import Tasks from '@/pages/Tasks';
 import TaskDetail from '@/pages/TaskDetail';
 import TaskCreate from '@/pages/TaskCreate';
@@ -30,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/agents" element={<Agents />} />
+            <Route path="/agents/:agentId" element={<AgentDetail />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/tasks/create" element={<TaskCreate />} />
             <Route path="/tasks/:taskId" element={<TaskDetail />} />
