@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agentsApi } from '@/api/client';
 import { STATUS_CONFIG, TIER_CONFIG } from '@/types';
 import type { Agent } from '@/types';
@@ -8,8 +8,19 @@ import type { Agent } from '@/types';
 function AgentCard({ agent }: { agent: Agent }) {
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const tierConfig = TIER_CONFIG[agent.tier as keyof typeof TIER_CONFIG];
   const statusConfig = STATUS_CONFIG[agent.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.offline;
+
+  const pauseMutation = useMutation({
+    mutationFn: () => agentsApi.updateStatus(agent.id, 'paused'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+  });
+
+  const resumeMutation = useMutation({
+    mutationFn: () => agentsApi.updateStatus(agent.id, 'idle'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+  });
 
   function handleClick() {
     navigate(`/agents/${agent.id}`);
@@ -17,8 +28,21 @@ function AgentCard({ agent }: { agent: Agent }) {
 
   function handleExpandToggle(e: React.MouseEvent) {
     e.stopPropagation();
-    setExpanded(!expanded);
+    setExpanded(\!expanded);
   }
+
+  function handlePause(e: React.MouseEvent) {
+    e.stopPropagation();
+    pauseMutation.mutate();
+  }
+
+  function handleResume(e: React.MouseEvent) {
+    e.stopPropagation();
+    resumeMutation.mutate();
+  }
+
+  const isPaused = agent.status === 'paused';
+  const canPause = agent.status === 'idle' || agent.status === 'working';
 
   return (
     <div className={`mc-card cursor-pointer transition-all ${expanded ? 'ring-1 ring-mc-accent-blue/30' : ''}`} onClick={handleClick}>
@@ -47,13 +71,35 @@ function AgentCard({ agent }: { agent: Agent }) {
         <div className="text-right flex flex-col items-end gap-1">
           <p className="text-xs text-mc-text-muted">{agent.total_tasks} tasks</p>
           <p className="text-xs text-mc-accent-amber">${agent.total_cost.toFixed(4)}</p>
-          <button
-            className="text-[10px] text-mc-text-muted hover:text-mc-text-secondary transition-colors mt-1"
-            onClick={handleExpandToggle}
-            title={expanded ? 'Collapse' : 'Expand quick view'}
-          >
-            {expanded ? '▲ less' : '▼ more'}
-          </button>
+          <div className="flex items-center gap-1 mt-1">
+            {canPause && (
+              <button
+                className="mc-btn bg-mc-accent-amber/20 text-mc-accent-amber text-[10px] py-0.5 px-2"
+                onClick={handlePause}
+                disabled={pauseMutation.isPending}
+                title="Pause agent"
+              >
+                {pauseMutation.isPending ? '...' : 'Pause'}
+              </button>
+            )}
+            {isPaused && (
+              <button
+                className="mc-btn bg-mc-accent-green/20 text-mc-accent-green text-[10px] py-0.5 px-2"
+                onClick={handleResume}
+                disabled={resumeMutation.isPending}
+                title="Resume agent"
+              >
+                {resumeMutation.isPending ? '...' : 'Resume'}
+              </button>
+            )}
+            <button
+              className="text-[10px] text-mc-text-muted hover:text-mc-text-secondary transition-colors"
+              onClick={handleExpandToggle}
+              title={expanded ? 'Collapse' : 'Expand quick view'}
+            >
+              {expanded ? '\u25B2 less' : '\u25BC more'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -151,6 +197,7 @@ export default function Agents() {
             <option value="">All Status</option>
             <option value="idle">Idle</option>
             <option value="working">Working</option>
+            <option value="paused">Paused</option>
             <option value="error">Error</option>
             <option value="offline">Offline</option>
           </select>
