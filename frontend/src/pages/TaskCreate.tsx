@@ -242,7 +242,7 @@ export default function TaskCreate() {
               <input
                 type="datetime-local"
                 className="mc-input w-full"
-                min={new Date().toISOString().slice(0, 16)}
+                min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
                 value={form.scheduledAt}
                 onChange={(e) => setForm((prev) => ({ ...prev, scheduledAt: e.target.value }))}
               />

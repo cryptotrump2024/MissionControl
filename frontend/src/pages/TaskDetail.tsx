@@ -292,8 +292,8 @@ export default function TaskDetail() {
             <span title={task.completed_at}>Completed {formatRelativeTime(task.completed_at)}</span>
           )}
           {task.scheduled_at && (
-            <span title={task.scheduled_at} className="text-mc-accent-amber">
-              Scheduled for {new Date(task.scheduled_at).toLocaleString()}
+            <span title={task.scheduled_at}>
+              🕐 Scheduled for {new Date(task.scheduled_at).toLocaleString()}
             </span>
           )}
         </div>
