@@ -263,7 +263,7 @@ export const devApi = {
 
 export const settingsApi = {
   get: (): Promise<Record<string, string>> =>
-    fetch(`${API_BASE}/api/settings`).then(r => r.json()),
+    request<Record<string, string>>('/api/settings'),
 
   update: (key: string, value: string): Promise<{ key: string; value: string }> =>
     fetch(`${API_BASE}/api/settings/${key}`, {

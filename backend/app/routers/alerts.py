@@ -15,6 +15,9 @@ router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
+# Keep strong references so GC cannot collect fire-and-forget tasks
+_background_tasks: set[asyncio.Task] = set()
+
 
 async def _fire_webhook(alert_data: dict) -> None:
     """Fire-and-forget webhook delivery. Logs failure, never raises."""
@@ -69,12 +72,14 @@ async def create_alert(alert_in: AlertCreate, db: AsyncSession = Depends(get_db)
     db.add(alert)
     await db.commit()
     await db.refresh(alert)
-    asyncio.create_task(_fire_webhook({
+    _task = asyncio.create_task(_fire_webhook({
         "alert_id": str(alert.id),
         "type": alert.type,
         "severity": alert.severity,
         "message": alert.message,
     }))
+    _background_tasks.add(_task)
+    _task.add_done_callback(_background_tasks.discard)
     return alert
 
 

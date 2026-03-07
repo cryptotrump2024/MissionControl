@@ -42,13 +42,17 @@ export default function Settings() {
     }
   }, [settings]);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: string }) =>
-      settingsApi.update(key, value),
+  const budgetMutation = useMutation({
+    mutationFn: (value: string) => settingsApi.update('daily_budget_usd', value),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       queryClient.invalidateQueries({ queryKey: ['costs', 'today'] });
     },
+  });
+
+  const webhookMutation = useMutation({
+    mutationFn: (value: string) => settingsApi.update('webhook_url', value),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
   });
 
   const handleTestWebhook = async () => {
@@ -98,18 +102,18 @@ export default function Settings() {
               />
               <button
                 className="mc-btn text-[10px] bg-mc-accent-blue text-white hover:opacity-90 disabled:opacity-50"
-                disabled={updateMutation.isPending}
-                onClick={() => updateMutation.mutate({ key: 'daily_budget_usd', value: budgetInput })}
+                disabled={budgetMutation.isPending}
+                onClick={() => budgetMutation.mutate(budgetInput)}
               >
-                {updateMutation.isPending ? 'Saving...' : 'Save'}
+                {budgetMutation.isPending ? 'Saving...' : 'Save'}
               </button>
             </div>
-            {updateMutation.isError && (updateMutation.variables as { key: string } | undefined)?.key === 'daily_budget_usd' && (
+            {budgetMutation.isError && (
               <p className="text-xs text-mc-accent-red mt-1">
-                {String((updateMutation.error as { detail?: string })?.detail ?? updateMutation.error)}
+                {String((budgetMutation.error as { detail?: string })?.detail ?? budgetMutation.error)}
               </p>
             )}
-            {updateMutation.isSuccess && (updateMutation.data as { key: string } | undefined)?.key === 'daily_budget_usd' && (
+            {budgetMutation.isSuccess && (
               <p className="text-xs text-mc-accent-green mt-1">Budget saved.</p>
             )}
           </div>
@@ -127,10 +131,10 @@ export default function Settings() {
               />
               <button
                 className="mc-btn text-[10px] bg-mc-accent-blue text-white hover:opacity-90 disabled:opacity-50"
-                disabled={updateMutation.isPending}
-                onClick={() => updateMutation.mutate({ key: 'webhook_url', value: webhookInput })}
+                disabled={webhookMutation.isPending}
+                onClick={() => webhookMutation.mutate(webhookInput)}
               >
-                {updateMutation.isPending ? 'Saving...' : 'Save'}
+                {webhookMutation.isPending ? 'Saving...' : 'Save'}
               </button>
               <button
                 className="mc-btn text-[10px] bg-mc-bg-tertiary text-mc-text-secondary hover:bg-mc-bg-hover disabled:opacity-50"
@@ -145,12 +149,12 @@ export default function Settings() {
                 {webhookResult.ok ? 'OK' : 'FAIL'} {webhookResult.message}
               </p>
             )}
-            {updateMutation.isError && (updateMutation.variables as { key: string } | undefined)?.key === 'webhook_url' && (
+            {webhookMutation.isError && (
               <p className="text-xs text-mc-accent-red mt-1">
-                {String((updateMutation.error as { detail?: string })?.detail ?? updateMutation.error)}
+                {String((webhookMutation.error as { detail?: string })?.detail ?? webhookMutation.error)}
               </p>
             )}
-            {updateMutation.isSuccess && (updateMutation.data as { key: string } | undefined)?.key === 'webhook_url' && (
+            {webhookMutation.isSuccess && (
               <p className="text-xs text-mc-accent-green mt-1">Webhook URL saved.</p>
             )}
             <p className="text-[10px] text-mc-text-muted mt-1.5">

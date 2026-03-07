@@ -76,10 +76,10 @@ async def list_cost_records(
 @router.get("/today")
 async def today_cost(db: AsyncSession = Depends(get_db)):
     """Get today's total cost and breakdown."""
-    from datetime import date
+    from datetime import datetime, timezone
     from sqlalchemy import cast, Date
 
-    today = date.today()
+    today_utc = datetime.now(timezone.utc).date()
 
     result = await db.execute(
         select(
@@ -88,13 +88,13 @@ async def today_cost(db: AsyncSession = Depends(get_db)):
             func.sum(CostRecord.output_tokens).label('output_tokens'),
             func.count(CostRecord.id).label('records'),
         )
-        .where(cast(CostRecord.timestamp, Date) == today)
+        .where(cast(CostRecord.timestamp, Date) == today_utc)
     )
     row = result.one()
 
     budget = await _get_daily_budget(db)
     return {
-        "date": str(today),
+        "date": str(today_utc),
         "total_usd": round(float(row.total or 0), 6),
         "input_tokens": int(row.input_tokens or 0),
         "output_tokens": int(row.output_tokens or 0),
