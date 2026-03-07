@@ -22,15 +22,16 @@ router = APIRouter()
 @router.get("/api/export/tasks.csv")
 async def export_tasks(
     status: str | None = Query(None),
-    agent_id: str | None = Query(None),
+    agent_id: UUID | None = Query(None),
+    limit: int = Query(default=5000, le=10000),
     db: AsyncSession = Depends(get_db),
 ):
     """Export tasks as CSV with optional status/agent_id filter."""
-    query = select(Task).order_by(Task.created_at.desc())
+    query = select(Task).order_by(Task.created_at.desc()).limit(limit)
     if status:
         query = query.where(Task.status == status)
     if agent_id:
-        query = query.where(Task.agent_id == UUID(agent_id))
+        query = query.where(Task.agent_id == agent_id)
 
     result = await db.execute(query)
     tasks = result.scalars().all()
@@ -66,8 +67,8 @@ async def export_tasks(
 @router.get("/api/export/logs.csv")
 async def export_logs(
     level: str | None = Query(None),
-    agent_id: str | None = Query(None),
-    task_id: str | None = Query(None),
+    agent_id: UUID | None = Query(None),
+    task_id: UUID | None = Query(None),
     limit: int = Query(default=1000, le=5000),
     db: AsyncSession = Depends(get_db),
 ):
@@ -76,9 +77,9 @@ async def export_logs(
     if level:
         query = query.where(LogEntry.level == level)
     if agent_id:
-        query = query.where(LogEntry.agent_id == UUID(agent_id))
+        query = query.where(LogEntry.agent_id == agent_id)
     if task_id:
-        query = query.where(LogEntry.task_id == UUID(task_id))
+        query = query.where(LogEntry.task_id == task_id)
 
     result = await db.execute(query)
     logs = result.scalars().all()
