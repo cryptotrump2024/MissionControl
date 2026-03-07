@@ -35,6 +35,9 @@ export default function Tasks() {
       setShowReassign(false);
       setReassignAgentId('');
     },
+    onError: (err: Error) => {
+      console.error('Bulk operation failed:', err.message);
+    },
   });
 
   const { data: agentData } = useQuery({
@@ -192,7 +195,7 @@ export default function Tasks() {
           </div>
           <button
             className="text-xs text-mc-text-muted hover:text-mc-text-primary ml-auto"
-            onClick={() => setSelected(new Set())}
+            onClick={() => { setSelected(new Set()); setShowReassign(false); }}
           >
             Clear
           </button>
