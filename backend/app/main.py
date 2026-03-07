@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.config import get_settings
 from app.database import async_session
-from app.routers import agents, tasks, logs, costs, health, approvals, alerts, dashboard, seed, demo, export, settings_api
+from app.routers import agents, tasks, logs, costs, health, approvals, alerts, dashboard, seed, demo, export, settings_api, templates
 from app.services.heartbeat import check_heartbeats
 from app.services.alert_engine import check_alerts
 from app.services.redis_client import get_redis, close_redis
@@ -70,6 +70,7 @@ app.include_router(seed.router, tags=["Dev"])
 app.include_router(demo.router, tags=["Demo"])
 app.include_router(export.router, tags=["Export"])
 app.include_router(settings_api.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
 
 
 @app.websocket("/ws/events")
