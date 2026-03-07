@@ -1,6 +1,17 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useWSStore } from '@/stores/websocket';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+async function layoutRequest<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '◉' },
@@ -9,6 +20,7 @@ const navItems = [
   { path: '/logs', label: 'Logs', icon: '≡' },
   { path: '/costs', label: 'Costs', icon: '$' },
   { path: '/approvals', label: 'Approvals', icon: '✓' },
+  { path: '/alerts', label: 'Alerts', icon: '⚠' },
 ];
 
 export default function Layout() {
@@ -17,6 +29,15 @@ export default function Layout() {
   useEffect(() => {
     connect();
   }, [connect]);
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['alerts-unread-count'],
+    queryFn: () => layoutRequest<{ count: number }>('/api/alerts/unread-count'),
+    refetchInterval: 30_000,
+    // Gracefully handle if endpoint not yet available
+    retry: false,
+  });
+  const unreadCount = unreadData?.count ?? 0;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -45,7 +66,12 @@ export default function Layout() {
               }
             >
               <span className="text-base w-5 text-center">{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.path === '/alerts' && unreadCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-mc-accent-red text-white text-[10px] font-bold leading-none">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

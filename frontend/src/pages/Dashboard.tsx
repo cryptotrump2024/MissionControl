@@ -4,6 +4,60 @@ import { useWSStore } from '@/stores/websocket';
 import { STATUS_CONFIG, TIER_CONFIG } from '@/types';
 import type { Agent, Task, WSEvent } from '@/types';
 
+// ── Live Events helpers ─────────────────────────────────────────────────────
+
+const EVENT_TYPE_COLOR: Record<string, string> = {
+  task_created: 'bg-mc-accent-blue/10 text-mc-accent-blue',
+  task_updated: 'bg-mc-accent-blue/10 text-mc-accent-blue',
+  task_completed: 'bg-mc-accent-blue/10 text-mc-accent-blue',
+  task_failed: 'bg-mc-accent-red/10 text-mc-accent-red',
+  agent_status_change: 'bg-mc-accent-green/10 text-mc-accent-green',
+  agent_registered: 'bg-mc-accent-green/10 text-mc-accent-green',
+  log_entry: 'bg-mc-text-muted/10 text-mc-text-muted',
+  alert_triggered: 'bg-mc-accent-amber/10 text-mc-accent-amber',
+  cost_update: 'bg-mc-accent-purple/10 text-mc-accent-purple',
+};
+
+function eventColor(type: string): string {
+  return EVENT_TYPE_COLOR[type] ?? 'bg-mc-bg-tertiary text-mc-text-secondary';
+}
+
+function eventDescription(event: WSEvent): string {
+  const d = event.data;
+  switch (event.type) {
+    case 'task_created':
+      return `Task created: ${(d.title as string) ?? (d.id as string) ?? ''}`;
+    case 'task_updated':
+      return `Task updated → ${(d.status as string) ?? ''}`;
+    case 'task_completed':
+      return `Task completed: ${(d.title as string) ?? (d.id as string) ?? ''}`;
+    case 'task_failed':
+      return `Task failed: ${(d.error_message as string) ?? (d.id as string) ?? ''}`;
+    case 'agent_status_change':
+      return `Agent ${(d.agent_id as string)?.slice(0, 8) ?? ''} → ${(d.status as string) ?? ''}`;
+    case 'agent_registered':
+      return `Agent registered: ${(d.name as string) ?? (d.id as string) ?? ''}`;
+    case 'log_entry':
+      return (d.message as string) ?? '';
+    case 'alert_triggered':
+      return `Alert: ${(d.message as string) ?? (d.type as string) ?? ''}`;
+    case 'cost_update':
+      return `Cost update: $${typeof d.cost === 'number' ? d.cost.toFixed(6) : d.cost ?? ''}`;
+    default:
+      return JSON.stringify(d).slice(0, 80);
+  }
+}
+
+function formatEventAge(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ago`;
+}
+
 function StatCard({ label, value, subtext, color }: { label: string; value: string | number; subtext?: string; color?: string }) {
   return (
     <div className="mc-card">
@@ -26,7 +80,7 @@ function AgentStatusDot({ status }: { status: string }) {
 }
 
 export default function Dashboard() {
-  const { events } = useWSStore();
+  const { events, connected } = useWSStore();
 
   const { data: agentData } = useQuery({
     queryKey: ['agents'],
@@ -162,6 +216,42 @@ export default function Dashboard() {
             </div>
           ) : (
             <p className="text-sm text-mc-text-muted">No cost data yet</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Live Events Panel ── */}
+      <div className="mc-card mt-6">
+        <div className="flex items-center gap-2 mb-3">
+          <h3 className="text-sm font-semibold text-mc-text-secondary">Live Events</h3>
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              connected ? 'bg-mc-accent-green animate-pulse' : 'bg-mc-accent-red'
+            }`}
+            title={connected ? 'WebSocket connected' : 'WebSocket disconnected'}
+          />
+        </div>
+        <div className="space-y-1.5 max-h-56 overflow-y-auto font-mono text-xs">
+          {events.length === 0 ? (
+            <p className="text-mc-text-muted py-4 text-center text-sm font-sans">
+              Waiting for events...
+            </p>
+          ) : (
+            events.slice(0, 10).map((event: WSEvent, i: number) => (
+              <div key={i} className="flex items-start gap-2 py-1 px-1 rounded hover:bg-mc-bg-hover">
+                <span className="text-mc-text-muted whitespace-nowrap flex-shrink-0 w-14">
+                  {formatEventAge(event.timestamp)}
+                </span>
+                <span
+                  className={`mc-badge text-[9px] flex-shrink-0 whitespace-nowrap ${eventColor(event.type)}`}
+                >
+                  {event.type}
+                </span>
+                <span className="text-mc-text-secondary truncate flex-1">
+                  {eventDescription(event)}
+                </span>
+              </div>
+            ))
           )}
         </div>
       </div>
