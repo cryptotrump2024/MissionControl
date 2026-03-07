@@ -15,7 +15,7 @@ ENV VITE_WS_URL=$VITE_WS_URL
 
 RUN npm run build
 
-# Production stage: serve static files via serve on $PORT
+# Production stage: serve static files via serve
 FROM node:20-alpine
 
 WORKDIR /app
@@ -26,4 +26,5 @@ COPY --from=builder /app/dist ./dist
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["sh", "-c", "serve -s dist -p ${PORT:-8080}"]
+# serve v14+ uses -l (--listen) with a port number, binds to 0.0.0.0 by default
+CMD ["sh", "-c", "serve -s dist -l ${PORT:-8080}"]
