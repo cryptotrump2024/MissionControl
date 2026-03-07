@@ -281,3 +281,39 @@ export const settingsApi = {
       return r.json();
     }),
 };
+
+// ── Templates ────────────────────────────────────────────────────────
+
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  agent_id: string | null;
+  priority: number;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export const templatesApi = {
+  list: (): Promise<TaskTemplate[]> =>
+    request<TaskTemplate[]>('/api/templates'),
+
+  create: (body: Omit<TaskTemplate, 'id' | 'created_at'>): Promise<TaskTemplate> =>
+    fetch(`${API_BASE}/api/templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(r => {
+      if (!r.ok) return r.json().then((e: unknown) => Promise.reject(e));
+      return r.json();
+    }),
+
+  delete: (id: string): Promise<void> =>
+    fetch(`${API_BASE}/api/templates/${id}`, { method: 'DELETE' }).then(() => undefined),
+
+  apply: (id: string): Promise<{ id: string; title: string; status: string }> =>
+    fetch(`${API_BASE}/api/templates/${id}/apply`, { method: 'POST' }).then(r => {
+      if (!r.ok) return r.json().then((e: unknown) => Promise.reject(e));
+      return r.json();
+    }),
+};
