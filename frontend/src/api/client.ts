@@ -80,10 +80,12 @@ export const agentsApi = {
 // ── Tasks ───────────────────────────────────────────────────────────
 
 export const tasksApi = {
-  list: (params?: { status?: string; agent_id?: string }) => {
+  list: (params?: { status?: string; agent_id?: string; search?: string; limit?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
     if (params?.agent_id) searchParams.set('agent_id', params.agent_id);
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
     const qs = searchParams.toString();
     return request<TaskListResponse>(`/api/tasks${qs ? `?${qs}` : ''}`);
   },

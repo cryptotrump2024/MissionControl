@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { tasksApi } from '@/api/client';
+import type { Task } from '@/types';
 
 interface Props {
   open: boolean;
@@ -34,17 +36,56 @@ export default function CommandPalette({ open, onClose }: Props) {
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [apiTasks, setApiTasks] = useState<PaletteItem[]>([]);
+  const [apiSearching, setApiSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Pull agents and tasks from TanStack Query cache — no extra API calls
   const agentData = queryClient.getQueryData<{ agents: { id: string; name: string; type: string }[] }>(['agents']);
   const taskData = queryClient.getQueryData<{ tasks: { id: string; title: string; status: string }[] }>(['tasks', undefined, undefined, 0]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setApiTasks([]);
+      setApiSearching(false);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      return;
+    }
     setQuery('');
     setSelected(0);
     const id = setTimeout(() => inputRef.current?.focus(), 50);
     return () => clearTimeout(id);
   }, [open]);
+
+  // Debounced API search for queries >= 3 chars
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.length < 3) {
+      setApiTasks([]);
+      setApiSearching(false);
+      return;
+    }
+    setApiSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const result = await tasksApi.list({ search: query, limit: 10 });
+        setApiTasks(
+          result.tasks.map((t: Task) => ({
+            id: `api-task-${t.id}`,
+            label: t.title,
+            sub: t.status,
+            icon: '✓',
+            route: `/tasks/${t.id}`,
+          }))
+        );
+      } catch {
+        setApiTasks([]);
+      } finally {
+        setApiSearching(false);
+      }
+    }, 250);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
 
   const items: PaletteItem[] = useMemo(() => {
     const agentItems: PaletteItem[] = (agentData?.agents ?? []).map((a) => ({
@@ -54,20 +95,24 @@ export default function CommandPalette({ open, onClose }: Props) {
       icon: '◈',
       route: `/agents/${a.id}`,
     }));
-    const taskItems: PaletteItem[] = (taskData?.tasks ?? []).map((t) => ({
+    const cacheTaskItems: PaletteItem[] = (taskData?.tasks ?? []).map((t) => ({
       id: `task-${t.id}`,
       label: t.title,
       sub: t.status,
       icon: '✓',
       route: `/tasks/${t.id}`,
     }));
-    const all = [...STATIC_PAGES, ...agentItems, ...taskItems];
+    // Deduplicate API tasks against cache
+    const cacheTaskIds = new Set(cacheTaskItems.map((i) => i.id.replace("task-", "")));
+    const freshApiTasks = apiTasks.filter((i) => !cacheTaskIds.has(i.id.replace("api-task-", "")));
+
+    const all = [...STATIC_PAGES, ...agentItems, ...cacheTaskItems, ...freshApiTasks];
     if (!query.trim()) return STATIC_PAGES;
     const q = query.toLowerCase();
     return all.filter(
       (i) => i.label.toLowerCase().includes(q) || i.sub?.toLowerCase().includes(q)
     );
-  }, [query, agentData, taskData]);
+  }, [query, agentData, taskData, apiTasks]);
 
   useEffect(() => setSelected(0), [query]);
 
@@ -112,6 +157,9 @@ export default function CommandPalette({ open, onClose }: Props) {
             onKeyDown={handleKey}
             className="flex-1 bg-transparent text-sm text-mc-text-primary placeholder-mc-text-muted focus:outline-none"
           />
+          {apiSearching && (
+            <span className="text-mc-text-muted text-xs animate-pulse">⋯</span>
+          )}
           {query && (
             <button
               className="text-mc-text-muted hover:text-mc-text-primary text-xs"

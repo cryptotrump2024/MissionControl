@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksApi, agentsApi, exportApi } from '@/api/client';
@@ -52,19 +52,14 @@ export default function Tasks() {
   const handleSearchChange = (val: string) => { setSearch(val); setPage(0); setSelected(new Set()); };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['tasks', filterStatus, filterAgent, page],
-    queryFn: () => tasksApi.list({ status: filterStatus, agent_id: filterAgent }),
+    queryKey: ['tasks', filterStatus, filterAgent, search, page],
+    queryFn: () => tasksApi.list({ status: filterStatus, agent_id: filterAgent, search: search || undefined }),
     refetchInterval: 10_000,
   });
 
   const allTasks = data?.tasks || [];
 
-  // Client-side title search filter
-  const tasks = useMemo(() => {
-    if (!search.trim()) return allTasks;
-    const q = search.toLowerCase();
-    return allTasks.filter((t: Task) => t.title.toLowerCase().includes(q));
-  }, [allTasks, search]);
+  const tasks = allTasks;
 
   // Paginate the (possibly filtered) list
   const pagedTasks = tasks.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
