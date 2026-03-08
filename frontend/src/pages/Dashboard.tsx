@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { agentsApi, tasksApi, dashboardApi, devApi, costsApi } from '@/api/client';
+import { agentsApi, tasksApi, dashboardApi, devApi, costsApi, activityApi } from '@/api/client';
 import { useWSStore } from '@/stores/websocket';
 import { STATUS_CONFIG, TIER_CONFIG } from '@/types';
-import type { Agent, Task, WSEvent } from '@/types';
+import type { Agent, Task, WSEvent, ActivityEvent } from '@/types';
 
 // ── Live Events helpers ─────────────────────────────────────────────────────
 
@@ -136,6 +137,13 @@ export default function Dashboard() {
     queryFn: costsApi.today,
     refetchInterval: 30_000,
   });
+
+  const { data: activityData } = useQuery({
+    queryKey: ['activity-dashboard'],
+    queryFn: () => activityApi.list({ limit: 5 }),
+    refetchInterval: 30_000,
+  });
+  const recentEvents = activityData?.events ?? [];
 
   const agents = agentData?.agents || [];
   const tasks = taskData?.tasks || [];
@@ -316,6 +324,39 @@ export default function Dashboard() {
             </div>
           ) : (
             <p className="text-sm text-mc-text-muted">No cost data yet</p>
+          )}
+        </div>
+      </div>
+
+      {/* Recent Activity Widget */}
+      <div className="mc-card mt-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-mc-text-secondary">Recent Activity</h3>
+          <Link to="/activity" className="text-xs text-mc-accent-blue hover:underline">View all →</Link>
+        </div>
+        <div className="space-y-2">
+          {recentEvents.length === 0 ? (
+            <p className="text-xs text-mc-text-muted">No recent activity.</p>
+          ) : (
+            recentEvents.map((event: ActivityEvent) => {
+              const dot =
+                event.type === 'task.completed'    ? 'bg-mc-accent-green' :
+                event.type === 'task.failed'       ? 'bg-mc-accent-red' :
+                event.type.startsWith('alert.')    ? 'bg-mc-accent-amber' :
+                                                    'bg-mc-accent-blue';
+              const diff = Date.now() - new Date(event.timestamp).getTime();
+              const s = Math.floor(diff / 1000);
+              const rel = s < 60 ? `${s}s ago` :
+                          s < 3600 ? `${Math.floor(s / 60)}m ago` :
+                          `${Math.floor(s / 3600)}h ago`;
+              return (
+                <div key={event.id} className="flex items-center gap-2 py-1">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                  <span className="text-xs text-mc-text-secondary truncate flex-1">{event.title}</span>
+                  <span className="text-[10px] text-mc-text-muted flex-shrink-0">{rel}</span>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
