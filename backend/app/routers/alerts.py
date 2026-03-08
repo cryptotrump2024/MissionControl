@@ -1,43 +1,18 @@
-import asyncio
 import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-import httpx
 
 from app.database import get_db
 from app.models.alert import Alert
 from app.schemas.alert import AlertCreate, AlertResponse
+from app.services.notifications import schedule_webhook, _background_tasks
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
-
-# Keep strong references so GC cannot collect fire-and-forget tasks
-_background_tasks: set[asyncio.Task] = set()
-
-
-async def _fire_webhook(alert_data: dict) -> None:
-    """Fire-and-forget webhook delivery. Logs failure, never raises."""
-    try:
-        from app.database import async_session
-        from app.models.setting import AppSetting
-        from sqlalchemy import select as _select
-        async with async_session() as db:
-            result = await db.execute(
-                _select(AppSetting).where(AppSetting.key == "webhook_url")
-            )
-            row = result.scalar_one_or_none()
-            url = row.value if row else ""
-        if not url:
-            return
-        payload = {"event": "alert", "source": "MissionControl", **alert_data}
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(url, json=payload)
-    except Exception as exc:
-        logger.warning("Webhook delivery failed: %s", exc)
 
 
 @router.get("", response_model=list[AlertResponse])
@@ -72,14 +47,13 @@ async def create_alert(alert_in: AlertCreate, db: AsyncSession = Depends(get_db)
     db.add(alert)
     await db.commit()
     await db.refresh(alert)
-    _task = asyncio.create_task(_fire_webhook({
+    schedule_webhook({
+        "event": "alert",
         "alert_id": str(alert.id),
         "type": alert.type,
         "severity": alert.severity,
         "message": alert.message,
-    }))
-    _background_tasks.add(_task)
-    _task.add_done_callback(_background_tasks.discard)
+    })
     return alert
 
 
