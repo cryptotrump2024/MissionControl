@@ -62,29 +62,33 @@ async def list_activity(
         except ValueError:
             before_dt = None
 
-    # Fetch tasks — sorted by created_at desc
-    task_query = select(Task).order_by(Task.created_at.desc()).limit(limit)
+    # Fetch tasks — .where() before .order_by()/.limit()
+    task_query = select(Task)
     if before_dt:
         task_query = task_query.where(Task.created_at < before_dt)
+    task_query = task_query.order_by(Task.created_at.desc()).limit(limit)
     task_result = await db.execute(task_query)
     tasks = task_result.scalars().all()
 
-    # Fetch alerts — sorted by created_at desc
-    alert_query = select(Alert).order_by(Alert.created_at.desc()).limit(limit)
+    # Fetch alerts — .where() before .order_by()/.limit()
+    alert_query = select(Alert)
     if before_dt:
         alert_query = alert_query.where(Alert.created_at < before_dt)
+    alert_query = alert_query.order_by(Alert.created_at.desc()).limit(limit)
     alert_result = await db.execute(alert_query)
     alerts = alert_result.scalars().all()
 
-    # Merge and sort descending by timestamp
+    # Merge and sort descending by timestamp (parse datetime, not string compare)
     events: list[dict[str, Any]] = (
         [_task_to_event(t) for t in tasks]
         + [_alert_to_event(a) for a in alerts]
     )
-    events.sort(key=lambda e: e["timestamp"], reverse=True)
+    events.sort(key=lambda e: datetime.fromisoformat(e["timestamp"]), reverse=True)
+
+    has_more = len(events) > limit
     page = events[:limit]
 
     return {
         "events": page,
-        "has_more": len(page) == limit,
+        "has_more": has_more,
     }
