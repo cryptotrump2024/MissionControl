@@ -14,6 +14,7 @@ from app.models.agent import Agent
 from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskListResponse
 from app.services.redis_client import get_redis
 from app.services.ws_manager import ws_manager
+from app.services.notifications import schedule_task_event
 
 logger = logging.getLogger(__name__)
 
@@ -228,6 +229,10 @@ async def update_task(
 
     await db.commit()
     await db.refresh(task)
+
+    # Fire notification for terminal status changes
+    if "status" in update_data and update_data["status"] in ("completed", "failed", "cancelled"):
+        schedule_task_event(task)
 
     # Broadcast appropriate event
     if "status" in update_data:
