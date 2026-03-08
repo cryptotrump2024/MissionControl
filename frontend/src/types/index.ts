@@ -137,3 +137,20 @@ export const STATUS_CONFIG = {
   paused: { color: '#f59e0b', label: 'Paused' },
   offline: { color: '#606070', label: 'Offline' },
 } as const;
+
+// ── Activity Types ──────────────────────────────────────────────────
+
+export interface ActivityEvent {
+  id: string;
+  type: string;           // e.g. "task.completed", "alert.critical"
+  title: string;
+  timestamp: string;
+  agent_id: string | null;
+  task_id: string | null;
+  alert_id: string | null;
+}
+
+export interface ActivityResponse {
+  events: ActivityEvent[];
+  has_more: boolean;
+}

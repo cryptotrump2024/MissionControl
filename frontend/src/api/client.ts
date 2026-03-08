@@ -25,7 +25,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ── Agents ──────────────────────────────────────────────────────────
 
-import type { Agent, AgentListResponse, Task, TaskListResponse, LogEntry, CostSummary, CostRecord, AlertResponse } from '@/types';
+import type { Agent, AgentListResponse, Task, TaskListResponse, LogEntry, CostSummary, CostRecord, AlertResponse, ActivityResponse } from '@/types';
 
 export const agentsApi = {
   list: (params?: { status?: string; tier?: number }) => {
@@ -239,6 +239,19 @@ export const alertsApi = {
     request<AlertResponse>(`/api/alerts/${id}/acknowledge`, { method: 'PATCH' }),
   unreadCount: () =>
     request<{ count: number }>('/api/alerts/unread-count'),
+};
+
+
+// ── Activity ─────────────────────────────────────────────────────────
+
+export const activityApi = {
+  list: (params?: { limit?: number; before?: string }) => {
+    const sp = new URLSearchParams();
+    if (params?.limit) sp.set('limit', String(params.limit));
+    if (params?.before) sp.set('before', params.before);
+    const qs = sp.toString();
+    return request<ActivityResponse>(`/api/activity${qs ? `?${qs}` : ''}`);
+  },
 };
 
 // ── Dashboard ────────────────────────────────────────────────────────
