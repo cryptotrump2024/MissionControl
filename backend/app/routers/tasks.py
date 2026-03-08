@@ -236,7 +236,14 @@ async def update_task(
 
     # Fire notification for terminal status changes
     if "status" in update_data and update_data["status"] in ("completed", "failed", "cancelled"):
-        schedule_task_event(task)
+        schedule_task_event({
+            "id": str(task.id),
+            "title": task.title,
+            "status": task.status,
+            "agent_id": str(task.agent_id) if task.agent_id else None,
+            "cost": float(task.cost or 0),
+            "tokens_used": task.tokens_used or 0,
+        })
 
     # Broadcast appropriate event
     if "status" in update_data:

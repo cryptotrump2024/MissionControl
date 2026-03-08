@@ -21,12 +21,11 @@ router = APIRouter()
 
 
 def _task_to_event(task: Task) -> dict[str, Any]:
-    ts = task.completed_at or task.started_at or task.created_at
     return {
         "id": f"task-{task.id}",
         "type": f"task.{task.status}",
         "title": task.title,
-        "timestamp": ts.isoformat() if ts else task.created_at.isoformat(),
+        "timestamp": task.created_at.isoformat(),
         "agent_id": str(task.agent_id) if task.agent_id else None,
         "task_id": str(task.id),
         "alert_id": None,
@@ -62,11 +61,14 @@ async def list_activity(
         except ValueError:
             before_dt = None
 
+    # Fetch limit+1 rows so we can detect a true next page after merging.
+    fetch_limit = limit + 1
+
     # Fetch tasks — .where() before .order_by()/.limit()
     task_query = select(Task)
     if before_dt:
         task_query = task_query.where(Task.created_at < before_dt)
-    task_query = task_query.order_by(Task.created_at.desc()).limit(limit)
+    task_query = task_query.order_by(Task.created_at.desc()).limit(fetch_limit)
     task_result = await db.execute(task_query)
     tasks = task_result.scalars().all()
 
@@ -74,7 +76,7 @@ async def list_activity(
     alert_query = select(Alert)
     if before_dt:
         alert_query = alert_query.where(Alert.created_at < before_dt)
-    alert_query = alert_query.order_by(Alert.created_at.desc()).limit(limit)
+    alert_query = alert_query.order_by(Alert.created_at.desc()).limit(fetch_limit)
     alert_result = await db.execute(alert_query)
     alerts = alert_result.scalars().all()
 

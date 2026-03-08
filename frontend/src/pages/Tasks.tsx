@@ -53,7 +53,7 @@ export default function Tasks() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', filterStatus, filterAgent, search, page],
-    queryFn: () => tasksApi.list({ status: filterStatus, agent_id: filterAgent, search: search || undefined }),
+    queryFn: () => tasksApi.list({ status: filterStatus, agent_id: filterAgent, search: search || undefined, limit: search ? 200 : undefined }),
     refetchInterval: 10_000,
   });
 

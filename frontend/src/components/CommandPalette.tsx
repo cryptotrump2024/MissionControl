@@ -42,7 +42,7 @@ export default function CommandPalette({ open, onClose }: Props) {
 
   // Pull agents and tasks from TanStack Query cache — no extra API calls
   const agentData = queryClient.getQueryData<{ agents: { id: string; name: string; type: string }[] }>(['agents']);
-  const taskData = queryClient.getQueryData<{ tasks: { id: string; title: string; status: string }[] }>(['tasks', undefined, undefined, 0]);
+  const taskData = queryClient.getQueryData<{ tasks: { id: string; title: string; status: string }[] }>(['tasks', undefined, undefined, '', 0]);
 
   useEffect(() => {
     if (!open) {

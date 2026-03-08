@@ -53,21 +53,21 @@ def schedule_webhook(payload: dict) -> None:
     task.add_done_callback(_background_tasks.discard)
 
 
-def schedule_task_event(task_obj) -> None:
+def schedule_task_event(task_data: dict) -> None:
     """
     Schedule fire_task_event as a background asyncio task.
-    Keeps a strong reference so GC cannot collect it.
+    Pass a plain dict snapshot (not an ORM instance) to avoid DetachedInstanceError.
     """
-    task = asyncio.create_task(fire_task_event(task_obj))
+    task = asyncio.create_task(fire_task_event(task_data))
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
 
 
-async def fire_task_event(task_obj) -> None:
+async def fire_task_event(task_data: dict) -> None:
     """
     Fire webhook for a task status change if notifications are enabled
     and this status is in the configured event list.
-    Reads notify_task_events_enabled and notify_task_events from AppSettings.
+    task_data must be a plain dict with keys: id, title, status, agent_id, cost, tokens_used
     """
     try:
         # Deferred to avoid circular imports at module load time
@@ -89,20 +89,13 @@ async def fire_task_event(task_obj) -> None:
         if not url:
             return
         allowed = [s.strip() for s in rows.get("notify_task_events", "completed,failed").split(",")]
-        if task_obj.status not in allowed:
+        if task_data.get("status") not in allowed:
             return
 
         payload = {
             "source": "MissionControl",
-            "event": f"task.{task_obj.status}",
-            "task": {
-                "id": str(task_obj.id),
-                "title": task_obj.title,
-                "status": task_obj.status,
-                "agent_id": str(task_obj.agent_id) if task_obj.agent_id else None,
-                "cost": float(task_obj.cost or 0),
-                "tokens_used": task_obj.tokens_used or 0,
-            },
+            "event": f"task.{task_data['status']}",
+            "task": task_data,
         }
         await _deliver(url, payload)
     except Exception as exc:
