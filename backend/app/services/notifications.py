@@ -16,7 +16,8 @@ _background_tasks: set[asyncio.Task] = set()
 async def _deliver(url: str, payload: dict) -> None:
     """Inner delivery — separate function so fire_webhook can be a thin wrapper."""
     async with httpx.AsyncClient(timeout=5.0) as client:
-        await client.post(url, json=payload)
+        resp = await client.post(url, json=payload)
+        resp.raise_for_status()
 
 
 async def fire_webhook(payload: dict) -> None:
@@ -25,6 +26,7 @@ async def fire_webhook(payload: dict) -> None:
     Fire-and-forget: logs failure, never raises.
     """
     try:
+        # Deferred to avoid circular imports at module load time
         from app.database import async_session
         from app.models.setting import AppSetting
         from sqlalchemy import select
@@ -51,6 +53,16 @@ def schedule_webhook(payload: dict) -> None:
     task.add_done_callback(_background_tasks.discard)
 
 
+def schedule_task_event(task_obj) -> None:
+    """
+    Schedule fire_task_event as a background asyncio task.
+    Keeps a strong reference so GC cannot collect it.
+    """
+    task = asyncio.create_task(fire_task_event(task_obj))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 async def fire_task_event(task_obj) -> None:
     """
     Fire webhook for a task status change if notifications are enabled
@@ -58,6 +70,7 @@ async def fire_task_event(task_obj) -> None:
     Reads notify_task_events_enabled and notify_task_events from AppSettings.
     """
     try:
+        # Deferred to avoid circular imports at module load time
         from app.database import async_session
         from app.models.setting import AppSetting
         from sqlalchemy import select

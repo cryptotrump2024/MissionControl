@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.alert import Alert
 from app.schemas.alert import AlertCreate, AlertResponse
-from app.services.notifications import schedule_webhook, _background_tasks
+from app.services.notifications import schedule_webhook
 
 router = APIRouter()
 
