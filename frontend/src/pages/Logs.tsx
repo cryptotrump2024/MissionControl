@@ -142,7 +142,7 @@ export default function Logs() {
 
       {/* ── Filter Bar ── */}
       <div className="mc-card mb-4">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
           {/* Level filter */}
           <select
             className="mc-input text-xs"
@@ -172,7 +172,7 @@ export default function Logs() {
 
           {/* Text search */}
           <input
-            className="mc-input text-xs w-52"
+            className="mc-input text-xs w-full sm:w-52"
             placeholder="Search messages..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -258,7 +258,7 @@ export default function Logs() {
                     {log.agent_id.slice(0, 8)}…
                   </span>
                 ) : (
-                  <span className="text-mc-text-muted flex-shrink-0 w-20">—</span>
+                  <span className="text-mc-text-muted flex-shrink-0 w-20 hidden sm:block">—</span>
                 )}
 
                 {/* Task ID link */}
@@ -271,7 +271,7 @@ export default function Logs() {
                     {log.task_id.slice(0, 8)}…
                   </Link>
                 ) : (
-                  <span className="text-mc-text-muted flex-shrink-0 w-20">—</span>
+                  <span className="text-mc-text-muted flex-shrink-0 w-20 hidden sm:block">—</span>
                 )}
 
                 {/* Message */}

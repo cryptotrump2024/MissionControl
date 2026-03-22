@@ -511,8 +511,8 @@ export default function Costs() {
               <thead>
                 <tr className="border-b border-mc-border-primary text-mc-text-muted">
                   <th className="text-left py-2 pr-4 font-medium">Timestamp</th>
-                  <th className="text-left py-2 pr-4 font-medium">Agent ID</th>
-                  <th className="text-left py-2 pr-4 font-medium">Model</th>
+                  <th className="text-left py-2 pr-4 font-medium hidden sm:table-cell">Agent ID</th>
+                  <th className="text-left py-2 pr-4 font-medium hidden sm:table-cell">Model</th>
                   <th className="text-right py-2 pr-4 font-medium">Input Tokens</th>
                   <th className="text-right py-2 pr-4 font-medium">Output Tokens</th>
                   <th className="text-right py-2 font-medium">Cost</th>
@@ -532,7 +532,7 @@ export default function Costs() {
                         {formatRelativeTime(rec.timestamp)}
                       </span>
                     </td>
-                    <td className="py-2 pr-4">
+                    <td className="py-2 pr-4 hidden sm:table-cell">
                       {rec.agent_id ? (
                         <span
                           className="font-mono text-mc-accent-blue truncate max-w-[120px] inline-block align-bottom"
@@ -544,7 +544,7 @@ export default function Costs() {
                         <span className="text-mc-text-muted">—</span>
                       )}
                     </td>
-                    <td className="py-2 pr-4 text-mc-text-secondary max-w-[160px] truncate" title={rec.model}>
+                    <td className="py-2 pr-4 text-mc-text-secondary max-w-[160px] truncate hidden sm:table-cell" title={rec.model}>
                       {rec.model}
                     </td>
                     <td className="py-2 pr-4 text-right text-mc-text-secondary tabular-nums">

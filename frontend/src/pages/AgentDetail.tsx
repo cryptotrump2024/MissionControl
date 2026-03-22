@@ -241,7 +241,7 @@ export default function AgentDetail() {
         <div className="mc-card"><p className="text-xs text-mc-text-muted">Token Budget / Day</p><p className="text-2xl font-bold text-mc-text-primary mt-1">{agent.token_budget_daily.toLocaleString()}</p></div>
         <div className="mc-card"><p className="text-xs text-mc-text-muted">Last Heartbeat</p><p className="text-sm font-semibold text-mc-text-primary mt-1">{agent.last_heartbeat ? formatRelativeTime(agent.last_heartbeat) : 'Never'}</p></div>
       </div>
-      <div className="flex gap-1 border-b border-mc-border-primary">
+      <div className="flex gap-1 border-b border-mc-border-primary overflow-x-auto">
         {(['overview', 'logs', 'metrics'] as ActiveTab[]).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${activeTab === tab ? 'border-mc-accent-blue text-mc-accent-blue' : 'border-transparent text-mc-text-muted hover:text-mc-text-secondary'}`}>{tab === 'overview' ? 'Overview' : tab === 'logs' ? 'Logs' : 'Metrics'}</button>))}
       </div>
       {activeTab === 'overview' && (<>

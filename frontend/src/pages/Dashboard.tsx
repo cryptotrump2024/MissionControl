@@ -64,7 +64,7 @@ function StatCard({ label, value, subtext, color }: { label: string; value: stri
   return (
     <div className="mc-card">
       <p className="text-xs text-mc-text-muted uppercase tracking-wider">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${color || 'text-mc-text-primary'}`}>{value}</p>
+      <p className={`text-xl sm:text-2xl font-bold mt-1 ${color || 'text-mc-text-primary'}`}>{value}</p>
       {subtext && <p className="text-xs text-mc-text-muted mt-1">{subtext}</p>}
     </div>
   );
@@ -150,7 +150,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <h2 className="text-xl font-bold">Command Center</h2>
         <div className="flex items-center gap-2">
           {seedMsg && <span className="text-xs text-mc-accent-green">{seedMsg}</span>}
@@ -388,7 +388,7 @@ export default function Dashboard() {
                 >
                   {event.type}
                 </span>
-                <span className="text-mc-text-secondary truncate flex-1">
+                <span className="text-mc-text-secondary break-words sm:truncate flex-1">
                   {eventDescription(event)}
                 </span>
               </div>

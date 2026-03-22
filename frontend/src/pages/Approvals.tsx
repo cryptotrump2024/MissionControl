@@ -97,7 +97,7 @@ export default function Approvals() {
 
                 {/* Action buttons — hidden when reject dialog is open for this task */}
                 {rejectingId !== task.id && (
-                  <div className="flex gap-2 ml-4 flex-shrink-0">
+                  <div className="flex flex-col sm:flex-row gap-2 ml-0 sm:ml-4 mt-3 sm:mt-0 flex-shrink-0">
                     <button
                       className="mc-btn text-xs bg-mc-accent-green/20 text-mc-accent-green hover:bg-mc-accent-green/30"
                       onClick={() => approveMutation.mutate(task.id)}

@@ -182,7 +182,7 @@ export default function Agents() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <h2 className="text-xl font-bold">
           Agents
           {search && allAgents.length > 0
@@ -190,15 +190,15 @@ export default function Agents() {
             : <span className="text-sm font-normal text-mc-text-muted ml-2">({data?.total || 0})</span>
           }
         </h2>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap w-full sm:w-auto">
           {/* Search */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <input
               type="text"
               placeholder="Search agents…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-mc-bg-secondary border border-mc-border-primary rounded px-3 py-1.5 text-sm text-mc-text-primary placeholder-mc-text-muted focus:outline-none focus:border-mc-accent-blue w-44 pr-7"
+              className="bg-mc-bg-secondary border border-mc-border-primary rounded px-3 py-1.5 text-sm text-mc-text-primary placeholder-mc-text-muted focus:outline-none focus:border-mc-accent-blue w-full sm:w-44 pr-7"
             />
             {search && (
               <button
@@ -211,7 +211,7 @@ export default function Agents() {
             )}
           </div>
           <select
-            className="mc-input text-xs"
+            className="mc-input text-xs flex-1 sm:flex-none"
             value={filterTier ?? ''}
             onChange={(e) => setFilterTier(e.target.value ? Number(e.target.value) : undefined)}
           >
@@ -222,7 +222,7 @@ export default function Agents() {
             <option value="3">Operational</option>
           </select>
           <select
-            className="mc-input text-xs"
+            className="mc-input text-xs flex-1 sm:flex-none"
             value={filterStatus ?? ''}
             onChange={(e) => setFilterStatus(e.target.value || undefined)}
           >

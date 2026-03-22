@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useWSStore } from '@/stores/websocket';
 import { useQuery } from '@tanstack/react-query';
-import { alertsApi } from '@/api/client';
+import { alertsApi, approvalsApi } from '@/api/client';
 import { ToastContainer, useWSToasts } from '@/components/Toast';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import ShortcutsOverlay from '@/components/ShortcutsOverlay';
@@ -46,6 +46,14 @@ export default function Layout() {
     retry: false,
   });
   const unreadCount = unreadData?.count ?? 0;
+
+  const { data: pendingApprovals } = useQuery({
+    queryKey: ['approvals'],
+    queryFn: approvalsApi.list,
+    refetchInterval: 15_000,
+    retry: false,
+  });
+  const approvalCount = pendingApprovals?.length ?? 0;
 
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
@@ -170,11 +178,79 @@ export default function Layout() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-6">
+          <div className="p-3 sm:p-4 md:p-6 pb-24 md:pb-6">
             <Outlet />
           </div>
         </main>
       </div>
+
+      {/* Bottom Navigation Bar — mobile only */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-mc-bg-secondary/90 backdrop-blur-lg border-t border-mc-border-primary"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div className="flex items-center justify-around h-14">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition-colors ${
+                isActive ? 'text-mc-accent-blue' : 'text-mc-text-muted'
+              }`
+            }
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2L2 9h3v7h4v-5h2v5h4V9h3L10 2z"/></svg>
+            <span>Dashboard</span>
+          </NavLink>
+          <NavLink
+            to="/agents"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition-colors ${
+                isActive ? 'text-mc-accent-blue' : 'text-mc-text-muted'
+              }`
+            }
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="7" r="4"/><path d="M3 17c0-3.87 3.13-7 7-7s7 3.13 7 7H3z"/></svg>
+            <span>Agents</span>
+          </NavLink>
+          <NavLink
+            to="/tasks"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition-colors ${
+                isActive ? 'text-mc-accent-blue' : 'text-mc-text-muted'
+              }`
+            }
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4h12v2H4V4zm0 5h12v2H4V9zm0 5h8v2H4v-2z"/></svg>
+            <span>Tasks</span>
+          </NavLink>
+          <NavLink
+            to="/approvals"
+            className={({ isActive }) =>
+              `relative flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition-colors ${
+                isActive ? 'text-mc-accent-blue' : 'text-mc-text-muted'
+              }`
+            }
+          >
+            <span className="relative">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" transform="translate(-2, -1) scale(0.9)"/></svg>
+              {approvalCount > 0 && (
+                <span className="absolute -top-1.5 -right-2.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-mc-accent-red text-white text-[9px] font-bold leading-none">
+                  {approvalCount > 99 ? '99+' : approvalCount}
+                </span>
+              )}
+            </span>
+            <span>Approvals</span>
+          </NavLink>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] text-mc-text-muted transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="4" cy="10" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="16" cy="10" r="2"/></svg>
+            <span>More</span>
+          </button>
+        </div>
+      </nav>
 
       {/* Toast notifications — rendered at root so they overlay everything */}
       <ToastContainer />

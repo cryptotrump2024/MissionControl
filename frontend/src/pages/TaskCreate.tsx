@@ -169,7 +169,7 @@ export default function TaskCreate() {
         </div>
 
         {/* Agent + Priority row */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-mc-text-secondary mb-1.5">
               Assign to Agent

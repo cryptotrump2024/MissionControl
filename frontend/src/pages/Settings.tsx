@@ -11,6 +11,8 @@ export default function Settings() {
   const [webhookInput, setWebhookInput] = useState('');
   const [webhookTesting, setWebhookTesting] = useState(false);
   const [webhookResult, setWebhookResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [notifyEnabled, setNotifyEnabled] = useState(false);
+  const [notifyEvents, setNotifyEvents] = useState<string[]>(['completed', 'failed']);
 
   const queryClient = useQueryClient();
 
@@ -39,6 +41,14 @@ export default function Settings() {
       if (settings.webhook_url !== undefined) {
         setWebhookInput(settings.webhook_url);
       }
+      if (settings.notify_task_events_enabled !== undefined) {
+        setNotifyEnabled(settings.notify_task_events_enabled === 'true');
+      }
+      if (settings.notify_task_events !== undefined) {
+        setNotifyEvents(
+          settings.notify_task_events.split(',').map((s: string) => s.trim()).filter(Boolean)
+        );
+      }
     }
   }, [settings]);
 
@@ -54,6 +64,25 @@ export default function Settings() {
     mutationFn: (value: string) => settingsApi.update('webhook_url', value),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
   });
+  const notifyEnabledMutation = useMutation({
+    mutationFn: (val: boolean) =>
+      settingsApi.update('notify_task_events_enabled', val ? 'true' : 'false'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
+  });
+
+  const notifyEventsMutation = useMutation({
+    mutationFn: (events: string[]) =>
+      settingsApi.update('notify_task_events', events.join(',')),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
+  });
+
+  function handleNotifyEventsChange(status: string, checked: boolean) {
+    const updated = checked
+      ? [...notifyEvents, status]
+      : notifyEvents.filter((s) => s !== status);
+    setNotifyEvents(updated);
+    notifyEventsMutation.mutate(updated);
+  }
 
   const handleTestWebhook = async () => {
     setWebhookTesting(true);
@@ -161,6 +190,53 @@ export default function Settings() {
               Receives a POST with JSON on each new alert. Must start with https://.
             </p>
           </div>
+
+          {/* Task Notifications */}
+          <div className="border-t border-mc-border-primary pt-4 mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs font-medium text-mc-text-primary">Task Notifications</p>
+                <p className="text-xs text-mc-text-muted mt-0.5">
+                  Fire webhook when tasks reach these statuses
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const next = !notifyEnabled;
+                  setNotifyEnabled(next);
+                  notifyEnabledMutation.mutate(next);
+                }}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  notifyEnabled ? 'bg-mc-accent-blue' : 'bg-mc-bg-tertiary border border-mc-border'
+                }`}
+                aria-label="Toggle task notifications"
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    notifyEnabled ? 'translate-x-4' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {notifyEnabled && (
+              <div className="flex gap-4">
+                {(['completed', 'failed', 'cancelled'] as const).map((status) => (
+                  <label
+                    key={status}
+                    className="flex items-center gap-1.5 text-xs text-mc-text-secondary cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={notifyEvents.includes(status)}
+                      onChange={(e) => handleNotifyEventsChange(status, e.target.checked)}
+                      className="rounded"
+                    />
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -168,21 +244,21 @@ export default function Settings() {
       <div className="mc-card">
         <h3 className="text-sm font-semibold text-mc-text-secondary mb-4">System</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <span className="text-xs text-mc-text-muted">API Endpoint</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-mc-text-secondary font-mono">{API_URL}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs text-mc-text-secondary font-mono truncate">{API_URL}</span>
               <button
-                className="mc-btn text-[10px] bg-mc-bg-tertiary text-mc-text-secondary hover:bg-mc-bg-hover"
+                className="mc-btn text-[10px] bg-mc-bg-tertiary text-mc-text-secondary hover:bg-mc-bg-hover flex-shrink-0"
                 onClick={() => copyToClipboard(API_URL)}
               >
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <span className="text-xs text-mc-text-muted">WebSocket</span>
-            <span className="text-xs text-mc-text-secondary font-mono">{WS_URL}</span>
+            <span className="text-xs text-mc-text-secondary font-mono truncate">{WS_URL}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-mc-text-muted">Backend Status</span>

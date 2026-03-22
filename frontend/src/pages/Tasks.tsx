@@ -80,7 +80,7 @@ export default function Tasks() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
         <h2 className="text-xl font-bold">
           Tasks
           <span className="text-sm font-normal text-mc-text-muted ml-2">
@@ -89,15 +89,15 @@ export default function Tasks() {
               : `(${data?.total || 0})`}
           </span>
         </h2>
-        <div className="flex gap-2 flex-wrap">
-          {/* Title search */}
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          {/* Title search — full width on mobile */}
+          <div className="relative w-full sm:w-auto">
             <input
               type="text"
               placeholder="Search titles…"
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="bg-mc-bg-secondary border border-mc-border-primary rounded px-3 py-1.5 text-sm text-mc-text-primary placeholder-mc-text-muted focus:outline-none focus:border-mc-accent-blue w-40 pr-7"
+              className="bg-mc-bg-secondary border border-mc-border-primary rounded px-3 py-1.5 text-sm text-mc-text-primary placeholder-mc-text-muted focus:outline-none focus:border-mc-accent-blue w-full sm:w-40 pr-7"
             />
             {search && (
               <button
@@ -109,41 +109,43 @@ export default function Tasks() {
               </button>
             )}
           </div>
-          <select
-            className="mc-input text-xs"
-            value={filterStatus ?? ''}
-            onChange={(e) => handleStatusChange(e.target.value)}
-          >
-            <option value="">All Status</option>
-            <option value="queued">Queued</option>
-            <option value="running">Running</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="awaiting_approval">Awaiting Approval</option>
-          </select>
-          <select
-            className="mc-input text-xs"
-            value={filterAgent ?? ''}
-            onChange={(e) => handleAgentChange(e.target.value)}
-          >
-            <option value="">All Agents</option>
-            {(agentData?.agents || []).map((agent) => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name}
-              </option>
-            ))}
-          </select>
-          <a
-              href={exportApi.tasksUrl({ status: filterStatus, agent_id: filterAgent })}
-              download="tasks.csv"
-              className="mc-btn-secondary text-xs flex items-center gap-1 no-underline"
+          <div className="flex gap-2 flex-wrap">
+            <select
+              className="mc-input text-xs flex-1 sm:flex-none"
+              value={filterStatus ?? ''}
+              onChange={(e) => handleStatusChange(e.target.value)}
             >
-              &#8595; CSV
-            </a>
-          <button className="mc-btn-primary text-xs" onClick={() => navigate('/tasks/create')}>
-            + New Task
-          </button>
+              <option value="">All Status</option>
+              <option value="queued">Queued</option>
+              <option value="running">Running</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="awaiting_approval">Awaiting Approval</option>
+            </select>
+            <select
+              className="mc-input text-xs flex-1 sm:flex-none hidden sm:block"
+              value={filterAgent ?? ''}
+              onChange={(e) => handleAgentChange(e.target.value)}
+            >
+              <option value="">All Agents</option>
+              {(agentData?.agents || []).map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+            <a
+                href={exportApi.tasksUrl({ status: filterStatus, agent_id: filterAgent })}
+                download="tasks.csv"
+                className="mc-btn-secondary text-xs flex items-center gap-1 no-underline hidden sm:flex"
+              >
+                &#8595; CSV
+              </a>
+            <button className="mc-btn-primary text-xs" onClick={() => navigate('/tasks/create')}>
+              + New Task
+            </button>
+          </div>
         </div>
       </div>
 
@@ -279,8 +281,11 @@ export default function Tasks() {
           {/* Pagination controls */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4 text-xs text-mc-text-muted">
-              <span>
+              <span className="hidden sm:inline">
                 Showing {showingFrom}–{showingTo} of {tasks.length}
+              </span>
+              <span className="sm:hidden">
+                {page + 1}/{totalPages}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -288,9 +293,9 @@ export default function Tasks() {
                   onClick={() => { setPage((p) => Math.max(0, p - 1)); setSelected(new Set()); }}
                   disabled={page === 0}
                 >
-                  ← Prev
+                  ←<span className="hidden sm:inline"> Prev</span>
                 </button>
-                <span className="text-mc-text-secondary font-medium">
+                <span className="text-mc-text-secondary font-medium hidden sm:inline">
                   {page + 1} / {totalPages}
                 </span>
                 <button
@@ -298,7 +303,7 @@ export default function Tasks() {
                   onClick={() => { setPage((p) => Math.min(totalPages - 1, p + 1)); setSelected(new Set()); }}
                   disabled={page >= totalPages - 1}
                 >
-                  Next →
+                  <span className="hidden sm:inline">Next </span>→
                 </button>
               </div>
             </div>

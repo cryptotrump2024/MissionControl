@@ -227,7 +227,7 @@ export default function TaskDetail() {
           <span className="text-mc-text-secondary truncate max-w-xs">{task.title}</span>
         </div>
 
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-mc-text-primary break-words">{task.title}</h2>
             <div className="flex items-center flex-wrap gap-3 mt-2">
@@ -254,7 +254,7 @@ export default function TaskDetail() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
             {task.status === 'queued' || task.status === 'running' ? (
               <button
                 className="mc-btn text-xs bg-mc-accent-red/20 text-mc-accent-red hover:bg-mc-accent-red/30 border-mc-accent-red/30"

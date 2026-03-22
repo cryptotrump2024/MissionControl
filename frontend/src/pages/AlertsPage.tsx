@@ -184,7 +184,7 @@ export default function AlertsPage() {
                 alert.acknowledged ? 'opacity-60' : ''
               }`}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
                 <div className="flex-1 min-w-0">
                   {/* Type tag + severity badge */}
                   <div className="flex items-center gap-2 mb-1.5">
